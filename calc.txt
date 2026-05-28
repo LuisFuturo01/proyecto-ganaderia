@@ -1,0 +1,144 @@
+================================================================================
+FORMULARIO MAESTRO DE CÁLCULOS MATEMÁTICOS Y FÍSICOS (SCIML)
+================================================================================
+Proyecto: iA Ganadería & Control Fitosanitario - UMSA
+Módulo: process/ (biological_mapping, dosimetry_engine, shelf_life_predictor, b2b_simulator, procesamiento)
+
+Este archivo detalla todas las fórmulas matemáticas, cinéticas físicas y estimaciones de planta utilizadas en el backend de Python.
+
+--------------------------------------------------------------------------------
+1. GEOMETRÍA Y METROLOGÍA ESPACIAL (OpenCV & Reconstrucción 3D)
+--------------------------------------------------------------------------------
+Las dimensiones físicas se obtienen convirtiendo coordenadas de píxeles (px) a centímetros (cm) usando el factor de escala:
+   Factor de Conversión: F_c = 0.01 cm/px
+
+* Caja Delimitadora Acotada (Bounding Box):
+  Calculada para cada cara visible (BGR con GrabCut + contorno máximo):
+     Ancho (cm) = Ancho_px × F_c
+     Alto (cm) = Alto_px × F_c
+     Espesor Estimado (cm) = Radio_menor_cm × 2
+
+* Índice de Esfericidad (Forma del Alimento):
+  Mide el grado de forma esférica mediante la relación de sus ejes principales:
+     ψ = min(Ancho_px, Alto_px) / max(Ancho_px, Alto_px)
+     Rango: 0.00 a 1.00 (donde 1.00 es una esfera perfecta).
+
+* Volumen Volumétrico Estimado (Elipsoide de Revolución):
+  Se asume una aproximación de elipsoide triaxial a partir de los radios mayor y menor promedio en centímetros:
+     Radio_mayor = max(Ancho_cm, Alto_cm) / 2
+     Radio_menor = min(Ancho_cm, Alto_cm) / 2
+     V (cm³) = (4 / 3) × π × (Radio_menor)² × Radio_mayor
+
+* Área de Superficie Calculada:
+  Se deriva de la escala cuadrática del área bidimensional del contorno:
+     Área (cm²) = Área_px_promedio × (F_c)²
+
+--------------------------------------------------------------------------------
+2. TRADUCTOR BIOLÓGICO CONTINUO (Curva Logística Sigmoide)
+--------------------------------------------------------------------------------
+Transforma el porcentaje (%) de daño epidérmico detectado en una dosis biológica requerida (kGy) usando una función sigmoide de saturación:
+
+   D_calculada (kGy) = d_min + [ (d_max - d_min) / (1 + exp(-k × (P - p_50))) ]
+
+Parámetros Constantes Maestros:
++-----------+----------------+----------------+--------------------+------------------+
+| Producto  | D_mínima (kGy) | D_máxima (kGy) | Tasa de Pendiente  | Punto Medio (P)  |
+|           |    (d_min)     |    (d_max)     |        (k)         |      (p_50)      |
++-----------+----------------+----------------+--------------------+------------------+
+| Papa      |      0.12      |      2.50      |        0.15        |      20.0%       |
+| Manzana   |      0.20      |      3.00      |        0.12        |      25.0%       |
++-----------+----------------+----------------+--------------------+------------------+
+
+* Interpretación:
+  - Si el daño (P) es cero o muy bajo, la dosis se asienta cerca del límite mínimo (d_min) suficiente para inhibir germinación o retrasar madurez.
+  - A medida que el daño aumenta en el punto de inflexión (p_50), la dosis se eleva de forma continua para realizar desinfestación de plagas o control microbiano profundo, saturándose en el límite tolerable de radiación (d_max).
+
+--------------------------------------------------------------------------------
+3. MOTOR FÍSICO DE DOSIMETRÍA 3D (Atenuación Beer-Lambert & Masa Dinámica)
+--------------------------------------------------------------------------------
+* Densidad del Producto (ρ):
+  - Papa: ρ = 1.08 g/cm³
+  - Manzana: ρ = 0.82 g/cm³
+
+* Masa Dinámica (m):
+  Derivada del volumen de la malla 3D y la densidad característica del fruto:
+     Masa (kg) = [ V (cm³) × ρ (g/cm³) ] / 1000
+
+* Radio Esférico Equivalente (r):
+  Calcula el radio de penetración media desde el volumen tridimensional:
+     r (cm) = [ (3 × V) / (4 × π) ]^(1/3)
+
+* Coeficiente de Atenuación Lineal (μ):
+  Derivado de la absorción másica estándar del Co-60 en tejido de agua/materia vegetal (μ_m = 0.063 cm²/g):
+     μ (cm⁻¹) = μ_m × ρ
+
+* Dosis de Emisión Nuclear Requerida en Superficie (I_0):
+  Para que la dosis mínima en el núcleo (centro del vegetal) coincida con la dosis biológica de la IA (D_biologica_ia), la máquina compensa la atenuación volumétrica de Beer-Lambert:
+     I_0 (kGy) = D_biologica_ia × exp(μ × r)
+
+* Energía Total Absorbida por el Alimento (E):
+  Calculada mediante la transferencia de dosis en Grays (Gy) por kilogramo de masa física del vegetal (1 kGy = 1000 Gy = 1000 J/kg):
+     E (Julios) = I_0 (Gy) × Masa (kg)
+     E (J) = [ I_0 (kGy) × 1000 ] × Masa (kg)
+
+* Curva de Atenuación Radial por Capas (8 Capas):
+  Distribuye la atenuación desde la corteza (capa 0) hasta el centro (capa 7):
+     Dosis(capa_i) = I_0 × exp(-μ × profundidad_i)
+     donde profundidad_i = (i / 7) × r
+
+* Uniformidad Dosimétrica (Dmax/Dmin):
+  Relación de dosis entre el punto con mayor radiación (superficie) y menor radiación (centro):
+     Uniformidad = I_0 / D_biologica_ia  (Equivale a: exp(μ × r))
+
+* Reducción Logarítmica Microbiana (L):
+  Estimada dividiendo la dosis absorbida en el centro entre el valor D10 biológico (dosis necesaria para reducir el 90% de patógenos específicos: Erwinia/Fusarium en papa = 0.14 kGy; Penicillium/Botrytis en manzana = 0.35 kGy):
+     L (reducción Log) = D_biologica_ia / D10
+
+--------------------------------------------------------------------------------
+4. CINÉTICA DE VIDA ÚTIL POST-IRRADIACIÓN (Primer Orden)
+--------------------------------------------------------------------------------
+Calcula la extensión neta de días de frescura comercial mediante el balance cinético de primer orden:
+
+   Días_restantes = Días_base + Días_ganados_irradiación - Días_perdidos_daño
+
+Parámetros Cinéticos por Vegetal:
+- Papa:   Días_base = 45 d | Ganancia_kGy = 25 d | Penalización_daño = 0.8 d/%
+- Manzana: Días_base = 30 d | Ganancia_kGy = 15 d | Penalización_daño = 0.6 d/%
+
+* Días Ganados por Irradiación (Logarítmica):
+  La ganancia de vida útil se satura a dosis altas (cinética no lineal):
+     Días_ganados = Ganancia_kGy × ln(1 + Dosis_absorbida_kGy)
+
+* Días Perdidos por Daño Físico Cosecha (Lineal):
+  El daño epidérmico acelera la entrada de hongos y degradación celular:
+     Días_perdidos = Penalización_daño × Porcentaje_daño_piel
+
+* Límite Seguro:
+     Días_restantes = max(1.0, Días_restantes)  (Mínimo absoluto de 1 día).
+
+--------------------------------------------------------------------------------
+5. PLANTA DE INSCRIPCIÓN Y COMERCIAL B2B (Fórmula Operativa)
+--------------------------------------------------------------------------------
+* Constantes de Operación:
+  - Tiempo de residencia por kGy absorbido: T_res = 120 s/kGy
+  - Costo operativo promedio de sistemas de planta: Costo_seg = 0.015 USD/s
+  - Dosis máxima estándar ciega (sin IA): Papa = 2.50 kGy | Manzana = 3.00 kGy
+
+* Tiempos de Cinta Operativos:
+  - Tiempo Proceso Ciego Tradicional (s): t_std = Dosis_ciega × T_res
+  - Tiempo Proceso Inteligente SciML (s): t_din = Dosis_dinamica_kGy × T_res
+  - Tiempo de Procesamiento Ahorrado (s): Δt = t_std - t_din
+
+* Ahorro Directo por Unidad Individual (USD):
+  - Costo Proceso Tradicional (USD): C_std = t_std × Costo_seg
+  - Costo Proceso Inteligente (USD): C_din = t_din × Costo_seg
+  - Ahorro Directo (USD): Ahorro_unidad = C_std - C_din
+
+* Ahorro Proyectado por Tonelada Métrica (1000 kg) de Producto:
+     Ahorro_tonelada (USD) = Ahorro_unidad × (1000 / Masa_kg)
+     (Multiplicar por el tipo de cambio, ej: 6.96, para convertir a Bolivianos - BS).
+
+* Porcentaje de Optimización de Throughput (Eficiencia de Flujo de Línea):
+     Optimización = (Ahorro_unidad / C_std) × 100
+     (Equivale a: [ (Dosis_ciega - Dosis_dinamica) / Dosis_ciega ] × 100)
+================================================================================

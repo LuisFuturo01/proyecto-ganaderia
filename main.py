@@ -161,7 +161,7 @@ async def predict_360(
 ):
     """
     Endpoint unificado de alta fidelidad.
-    Recibe hasta 4 imágenes de vistas diferentes, realiza el aislamiento por rembg,
+    Recibe hasta 4 imágenes de vistas diferentes, realiza el aislamiento por GrabCut,
     la costura de textura plana para Three.js, y calcula las simulaciones físicas,
     biológicas, dosimétricas, de vida útil y financieras.
     """

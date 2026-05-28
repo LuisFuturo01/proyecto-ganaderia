@@ -1,0 +1,82 @@
+DICCIONARIO DE DATOS Y UNIDADES DE TRABAJO (API JSON)
+================================================================================
+
+Este archivo especifica la estructura, las claves del JSON devuelto por la API y las unidades de medida correspondientes para cada uno de los campos de datos enviados al Frontend.
+
+--------------------------------------------------------------------------------
+1. CLASIFICACIÓN DE ALIMENTO (`clasificacion_alimento`)
+--------------------------------------------------------------------------------
+* `tipo_item_detectado`: [String] Tipo de vegetal ("apple" | "potato").
+* `puntaje_confianza_modelo`: [Float] Nivel de certidumbre del modelo (Rango: 0.00 a 1.00). Multiplicar por 100 en Frontend para obtener el porcentaje (%).
+  - Unidad: Porcentaje (%) después de multiplicar por 100.
+
+--------------------------------------------------------------------------------
+2. ANÁLISIS DE COLOR Y EPIDERMIS (`analisis_color_superficie`)
+--------------------------------------------------------------------------------
+* `espacio_color_hsv_promedio`: [Array de 3 Integers] Representación [H, S, V] del promedio cromático del objeto en la escala de OpenCV.
+  - H (Tono): Rango OpenCV 0-180 (equivale a 0-360 grados en CSS HSL / HSV. Multiplicar por 2 para usar en la web).
+  - S (Saturación): Rango OpenCV 0-255 (equivale a 0-100% en web. Dividir por 2.55).
+  - V (Valor/Brillo): Rango OpenCV 0-255 (equivale a 0-100% en web. Dividir por 2.55).
+* `porcentaje_superficie_piel_danada`: [Float] Porcentaje de la piel del vegetal que presenta daños o lesiones.
+  - Unidad: Porcentaje (%). Rango: 0.0 a 100.0.
+* `conteo_manchas_aisladas`: [Integer] Número absoluto de lesiones físicas o manchas detectadas en la superficie.
+  - Unidad: Unidades de manchas (número entero).
+
+--------------------------------------------------------------------------------
+3. GEOMETRÍA ESPACIAL 3D (`geometria_espacial_3d`)
+--------------------------------------------------------------------------------
+* `volumen_calculado_cm3`: [Float] Volumen estimado del fruto/tubérculo.
+  - Unidad: Centímetros cúbicos (cm³).
+* `area_superficie_calculada_cm2`: [Float] Área de la epidermis calculada a partir de contornos.
+  - Unidad: Centímetros cuadrados (cm²).
+* `indice_forma_esfericidad`: [Float] Relación de forma (relación del diámetro menor / diámetro mayor).
+  - Unidad: Adimensional. Rango: 0.00 a 1.00 (donde 1.00 es una esfera perfecta).
+* `dimensiones_caja_borde_cm`: [Objeto] Caja de límites tridimensionales.
+  - `ancho`: [Float] Ancho máximo del objeto. Unidad: Centímetros (cm).
+  - `alto`: [Float] Alto máximo del objeto. Unidad: Centímetros (cm).
+  - `espesor_profundidad_estimada`: [Float] Espesor estimado del objeto. Unidad: Centímetros (cm).
+* `ruta_imagen_plana_textura`: [String] Ruta del archivo del mapa de textura 360 desenrollada.
+* `ruta_imagen_agrupada`: [String] Ruta de la cuadrícula premium de control de calidad 2x2.
+
+--------------------------------------------------------------------------------
+4. DOSIMETRÍA DE RADIACIÓN NUCLEAR (`simulacion_dosimetria_radiacion`)
+--------------------------------------------------------------------------------
+* `dosis_superficie_objetivo_kGy`: [Float] Dosis requerida de emisión ionizante en la superficie del objeto.
+  - Unidad: KiloGrays (kGy). (1 kGy = 1000 Grays = 1000 Julios de energía depositada por Kilogramo de materia).
+* `proposito_fitosanitario_asignado`: [String] Fin del tratamiento ("Inhibición de germinación", "Retraso de maduración", "Desinfestación de plagas", "Control microbiano" o "Tratamiento estándar").
+* `perfil_atenuacion_profundidad_lineal_kGy`: [Array de 8 Floats] Curva de dosis absorbida desde la superficie hacia el núcleo dividido en 8 capas de igual espesor.
+  - Unidad de cada elemento: KiloGrays (kGy).
+* `indicadores_dosimetria_fisico_biologica`: [Objeto]
+  - `energia_depositada_total_Joules`: [Float] Energía total transferida al alimento por la radiación.
+    - Unidad: Julios (J).
+  - `coeficiente_atenuacion_lineal_mu`: [Float] Coeficiente físico de absorción volumétrica del material.
+    - Unidad: Centímetros a la inversa (cm⁻¹).
+  - `uniformidad_dosis_ratio_Dmax_Dmin`: [Float] Relación de distribución (Dosis máxima de superficie / Dosis mínima de núcleo).
+    - Unidad: Adimensional (expresado comúnmente como proporción x : 1).
+  - `densidad_masa_estimada_g_cm3`: [Float] Densidad volumétrica calculada del alimento.
+    - Unidad: Gramos por centímetro cúbico (g/cm³).
+  - `reduccion_logaritmica_carga_bacteriana`: [Float] Nivel de esterilización o control microbiológico.
+    - Unidad: Factor logarítmico (Log). Ej: una reducción de 5.0 Log equivale a eliminar el 99.999% de los microorganismos patógenos.
+
+--------------------------------------------------------------------------------
+5. CINÉTICA DE VIDA ÚTIL PREDICHA (`prediccion_vida_util_post_irradiacion`)
+--------------------------------------------------------------------------------
+* `dias_vida_util_restante`: [Integer] Total de días estimados que el alimento se mantendrá fresco y apto para su consumo comercial.
+  - Unidad: Días (número entero).
+* `dias_ganados_por_irradiacion`: [Integer] Tiempo de vida comercial adicional que se le añade al fruto debido a la eliminación de patógenos e inhibición de degradación enzimática.
+  - Unidad: Días (número entero).
+* `estado_proyeccion`: [String] Categoría de vida útil restante ("Óptima", "Extendida", "Urgente", "Normal", etc.).
+
+--------------------------------------------------------------------------------
+6. IMPACTO FINANCIERO COMERCIAL B2B (`simulacion_impacto_financiero_operativo`)
+--------------------------------------------------------------------------------
+* `dosis_estandar_industria_kGy`: [Float] Dosis estándar genérica que utiliza la industria agroalimentaria tradicional para ese producto.
+  - Unidad: KiloGrays (kGy).
+* `tiempo_procesamiento_ahorrado_segundos`: [Float] Tiempo estimado que se reduce en la cinta de la planta al optimizar la dosis requerida en base al gemelo digital.
+  - Unidad: Segundos (s).
+* `ahorro_directo_por_unidad_usd`: [Float] Ahorro de costos directos (electricidad, refrigeración, químicos, mermas) por cada unidad de fruta individual.
+  - Unidad: Dólares estadounidenses (USD). (Se puede mostrar en Bolivianos - BS - multiplicando por el tipo de cambio oficial, ej: 6.96).
+* `ahorro_proyectado_por_tonelada_usd`: [Float] Ahorro total extrapolado para un lote comercial a granel de una tonelada métrica de producto.
+  - Unidad: Dólares estadounidenses (USD). Multiplicar por 6.96 en Frontend para representarlo en Bolivianos (BS).
+* `porcentaje_optimizacion_throughput`: [Float] Incremento porcentual en la velocidad y volumen de flujo de procesamiento en la cinta transportadora de la planta de irradiación.
+  - Unidad: Porcentaje (%).

@@ -4,26 +4,64 @@ import math
 import json
 import tensorflow as tf
 import os
+import shutil
 from pathlib import Path
-from PIL import Image
-from rembg import remove, new_session
 from process.biological_mapping import calcular_dosis_biologica_continua
 from process.dosimetry_engine import calcular_dosis_emision_3d
 from process.shelf_life_predictor import calcular_vida_util
 from process.b2b_simulator import calcular_impacto_financiero
 
-# Cargar el modelo v3 de producción usando TFSMLayer (Requerido en Keras 3 / TensorFlow 2.16+)
+# Sincronización automática de los archivos del modelo desde modelo_ml a la carpeta local
+src_model_path = r"d:\xampp\htdocs\UMSA\iA\modelo_ml\model\3"
+legacy_model_path = r"d:\xampp\htdocs\UMSA\iA\proyecto-ganaderia\model"
+
 try:
-    legacy_model_path = r"d:\xampp\htdocs\UMSA\iA\modelo_ml\model\3"
+    if os.path.exists(src_model_path):
+        os.makedirs(legacy_model_path, exist_ok=True)
+        src_vars = os.path.join(src_model_path, "variables")
+        dest_vars = os.path.join(legacy_model_path, "variables")
+        
+        # Copiar variables si no existen localmente en el proyecto
+        if not os.path.exists(dest_vars) and os.path.exists(src_vars):
+            print(f"[INFO] Copiando variables del modelo de producción desde {src_vars} a {dest_vars}...")
+            shutil.copytree(src_vars, dest_vars, dirs_exist_ok=True)
+            print("[SUCCESS] Variables del modelo sincronizadas con éxito!")
+            
+        # Copiar archivos pb si faltan
+        for f_name in ["saved_model.pb", "keras_metadata.pb", "fingerprint.pb"]:
+            src_f = os.path.join(src_model_path, f_name)
+            dest_f = os.path.join(legacy_model_path, f_name)
+            if os.path.exists(src_f) and not os.path.exists(dest_f):
+                shutil.copy2(src_f, dest_f)
+                print(f"[SUCCESS] Archivo {f_name} copiado al modelo local en proyecto-ganaderia.")
+except Exception as e:
+    print(f"[WARNING] No se pudo realizar la sincronización automática del modelo: {e}")
+
+# Cargar el modelo v3 de producción usando TFSMLayer desde la ruta local de proyecto-ganaderia (Requerido en Keras 3 / TensorFlow 2.16+)
+try:
     tfsmlayer = tf.keras.layers.TFSMLayer(legacy_model_path, call_endpoint='serving_default')
     # Envolverlo en un modelo funcional para una carga limpia y llamadas estándares
     inputs = tf.keras.Input(shape=(256, 256, 3))
     outputs = tfsmlayer(inputs)
     MODELO_GLOBAL = tf.keras.Model(inputs, outputs)
-    print("[SUCCESS] Modelo TensorFlow v3 cargado con exito en Keras 3 mediante TFSMLayer!")
+    print(f"[SUCCESS] Modelo TensorFlow v3 cargado con éxito desde '{legacy_model_path}' mediante TFSMLayer!")
+    
+    # Pre-calentar el modelo con una inferencia dummy para forzar el trazado inicial del grafo de TensorFlow/Keras
+    try:
+        dummy_tensor = tf.zeros((1, 256, 256, 3), dtype=tf.float32)
+        _ = MODELO_GLOBAL(dummy_tensor, training=False)
+        print("[SUCCESS] Modelo de producción pre-calentado e inicializado con éxito!")
+    except Exception as warmup_err:
+        print(f"[WARNING] No se pudo realizar el pre-calentamiento del modelo: {warmup_err}")
 except Exception as e:
     print(f"[WARNING] Error al inicializar TFSMLayer: {e}. Intentando carga directa heredada...")
-    MODELO_GLOBAL = tf.keras.models.load_model(r"d:\xampp\htdocs\UMSA\iA\modelo_ml\model\3")
+    MODELO_GLOBAL = tf.keras.models.load_model(legacy_model_path)
+    try:
+        dummy_tensor = tf.zeros((1, 256, 256, 3), dtype=tf.float32)
+        _ = MODELO_GLOBAL(dummy_tensor, training=False)
+        print("[SUCCESS] Modelo heredado pre-calentado con éxito!")
+    except Exception:
+        pass
 
 TAMANO_ENTRADA = 256  # Resolución de entrada del modelo (256x256)
 
@@ -44,57 +82,279 @@ DIRECTORIO_DATASET = "analyze"
 os.makedirs(DIRECTORIO_DATASET, exist_ok=True)
 
 # ======================================================================
-# PANEL DE CONTROL — Sensibilidad de detección del objeto
+# FUNCIONES DE PROCESAMIENTO DE IMAGEN (GrabCut + Join)
 # ======================================================================
-# Modificar estos valores para ajustar cómo se detecta y recorta el objeto.
-#
-# CLAHE_CLIP_LIMIT: Intensidad del realce de contraste local (CLAHE).
-#   - Rango: 1.0 a 10.0
-#   - Bajo (1.0): Contraste casi sin cambios. Poco efecto.
-#   - Medio (2.0-3.0): Realce suave. Recomendado por defecto.
-#   - Alto (5.0-10.0): Contraste agresivo. Útil si el objeto es muy similar al fondo.
-#   ➜ Aumentar si el objeto se confunde con el fondo.
-CLAHE_CLIP_LIMIT = 2.0
-
-# BLUR_KERNEL: Tamaño del suavizado gaussiano antes del umbralizado.
-#   - Valores posibles: 3, 5, 7, 9, 11 (siempre impar)
-#   - Bajo (3): Más sensible a detalles finos y texturas. Puede captar ruido.
-#   - Medio (5): Balance entre detalle y limpieza. Recomendado.
-#   - Alto (7-11): Suaviza más. Pierde bordes finos pero ignora ruido.
-#   ➜ Reducir para más sensibilidad a bordes. Aumentar si hay mucho ruido.
-BLUR_KERNEL = 5
-
-# MORPH_KERNEL: Tamaño del kernel para operaciones morfológicas (CLOSE/OPEN).
-#   - Valores posibles: 3, 5, 7, 9 (siempre impar)
-#   - Bajo (3): Conserva detalles finos del contorno. Puede dejar huecos.
-#   - Medio (5): Buen balance. Recomendado.
-#   - Alto (7-9): Contornos más suaves. Puede unir objetos separados.
-#   ➜ Reducir si el contorno se deforma. Aumentar si el contorno tiene huecos.
-MORPH_KERNEL = 5
-
-# MORPH_CLOSE_ITER: Iteraciones de CLOSE (rellena huecos dentro del objeto).
-#   - Rango: 1 a 5
-#   - Bajo (1): Relleno mínimo. Puede quedar con agujeros internos.
-#   - Medio (2): Relleno suficiente para la mayoría de casos.
-#   - Alto (3-5): Relleno agresivo. Puede expandir el contorno.
-#   ➜ Aumentar si el objeto tiene huecos internos en la detección.
-MORPH_CLOSE_ITER = 2
-
-# MORPH_OPEN_ITER: Iteraciones de OPEN (elimina ruido/puntos sueltos).
-#   - Rango: 1 a 3
-#   - Bajo (1): Limpieza suave. Recomendado.
-#   - Alto (2-3): Elimina más ruido pero puede erosionar bordes del objeto.
-#   ➜ Aumentar solo si hay muchos puntos de ruido sueltos.
-MORPH_OPEN_ITER = 1
-
-# MARGEN_RECORTE: Porcentaje de margen alrededor del bounding box al recortar.
-#   - Rango: 0.0 a 0.40 (0% a 40%)
-#   - Bajo (0.05-0.10): Recorte ajustado. Puede cortar bordes del objeto.
-#   - Medio (0.15-0.20): Margen cómodo. Recomendado.
-#   - Alto (0.30-0.40): Mucho espacio extra. Incluye más fondo.
-#   ➜ Aumentar si el objeto se corta en los bordes.
-MARGEN_RECORTE = 0.20
+# Basado en los scripts probados recor.py y join.py
 # ======================================================================
+
+def recortar_objeto_grabcut(img_bgr):
+    """
+    Aísla el objeto (papa o manzana) de la imagen usando GrabCut de OpenCV,
+    guiado por detección de color HSV para los tonos típicos del producto
+    (café/marrón para papas, rojo/verde para manzanas).
+    Retorna la imagen recortada con fondo negro (BGR).
+    Si falla, retorna la imagen original.
+    Basado en: recor.py
+    """
+    h, w, _ = img_bgr.shape
+    
+    # Crear máscaras y buffers para el algoritmo GrabCut
+    mascara = np.zeros((h, w), np.uint8)
+    bgdModel = np.zeros((1, 65), np.float64)
+    fgdModel = np.zeros((1, 65), np.float64)
+    
+    try:
+        # ================================================================
+        # FASE 1: Detección de color HSV para guiar GrabCut
+        # Buscamos los colores típicos de papas y manzanas para marcar
+        # probable foreground, evitando que GrabCut invierta la segmentación
+        # ================================================================
+        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+        
+        # --- Rangos HSV para los colores de los productos ---
+        # Café/Marrón (papas): H=10-30, S=40-200, V=40-200
+        mascara_cafe = cv2.inRange(hsv, np.array([10, 40, 40]), np.array([30, 200, 200]))
+        
+        # Rojo bajo (manzanas rojas): H=0-10, S=50-255, V=50-255
+        mascara_rojo_bajo = cv2.inRange(hsv, np.array([0, 50, 50]), np.array([10, 255, 255]))
+        
+        # Rojo alto (manzanas rojas): H=160-180, S=50-255, V=50-255
+        mascara_rojo_alto = cv2.inRange(hsv, np.array([160, 50, 50]), np.array([180, 255, 255]))
+        
+        # Verde (manzanas verdes): H=30-85, S=40-255, V=40-255
+        mascara_verde = cv2.inRange(hsv, np.array([30, 40, 40]), np.array([85, 255, 255]))
+        
+        # Amarillo/Naranja (papas claras, manzanas amarillas): H=15-35, S=50-255, V=80-255
+        mascara_amarillo = cv2.inRange(hsv, np.array([15, 50, 80]), np.array([35, 255, 255]))
+        
+        # Combinar todas las máscaras de color del producto
+        mascara_color = mascara_cafe | mascara_rojo_bajo | mascara_rojo_alto | mascara_verde | mascara_amarillo
+        
+        # Limpiar la máscara con operaciones morfológicas
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        mascara_color = cv2.morphologyEx(mascara_color, cv2.MORPH_CLOSE, kernel, iterations=3)
+        mascara_color = cv2.morphologyEx(mascara_color, cv2.MORPH_OPEN, kernel, iterations=2)
+        
+        # Calcular cuántos píxeles de producto detectamos
+        pixeles_producto = cv2.countNonZero(mascara_color)
+        porcentaje_producto = pixeles_producto / (h * w)
+        
+        # ================================================================
+        # FASE 2: GrabCut con máscara guiada o con rectángulo
+        # ================================================================
+        if porcentaje_producto > 0.03:  # Si detectamos al menos 3% de píxeles de producto
+            # Usar la máscara de color para guiar GrabCut (GC_INIT_WITH_MASK)
+            # Marcar: 0=fondo seguro, 1=frente seguro, 2=probable fondo, 3=probable frente
+            
+            # Empezar con todo como probable fondo
+            mascara[:] = cv2.GC_PR_BGD  # 2
+            
+            # Marcar los bordes exteriores (4% del borde) como fondo seguro
+            borde = int(min(h, w) * 0.04)
+            mascara[:borde, :] = cv2.GC_BGD  # 0 - borde superior
+            mascara[h-borde:, :] = cv2.GC_BGD  # 0 - borde inferior
+            mascara[:, :borde] = cv2.GC_BGD  # 0 - borde izquierdo
+            mascara[:, w-borde:] = cv2.GC_BGD  # 0 - borde derecho
+            
+            # Marcar los píxeles de color del producto como probable frente
+            mascara[mascara_color > 0] = cv2.GC_PR_FGD  # 3
+            
+            # Erosionar la máscara de color para encontrar el centro sólido del producto
+            kernel_centro = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+            centro_solido = cv2.erode(mascara_color, kernel_centro, iterations=2)
+            
+            # Marcar el centro sólido como frente seguro
+            mascara[centro_solido > 0] = cv2.GC_FGD  # 1
+            
+            cv2.grabCut(img_bgr, mascara, None, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_MASK)
+            print(f"    [GrabCut] Modo GUIADO por color ({porcentaje_producto*100:.1f}% píxeles de producto detectados)")
+        else:
+            # Fallback: usar rectángulo como en recor.py original
+            rectangulo = (int(w * 0.04), int(h * 0.04), int(w * 0.92), int(h * 0.92))
+            cv2.grabCut(img_bgr, mascara, rectangulo, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+            print(f"    [GrabCut] Modo RECTÁNGULO (fallback, {porcentaje_producto*100:.1f}% píxeles de color)")
+        
+        # Filtrar los píxeles que pertenecen al objeto (seguros y probables)
+        mascara_binaria = np.where((mascara == 2) | (mascara == 0), 0, 1).astype('uint8') * 255
+        
+        # ================================================================
+        # FASE 3: Validación y recorte (idéntico a recor.py)
+        # ================================================================
+        # Encontrar los contornos del objeto aislado
+        contornos, _ = cv2.findContours(mascara_binaria, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contornos:
+            print("⚠️ GrabCut: No se detectó ningún objeto central en la imagen.")
+            return img_bgr
+            
+        # Obtener el contorno más grande (el fruto)
+        c = max(contornos, key=cv2.contourArea)
+        x, y, w_box, h_box = cv2.boundingRect(c)
+        
+        # --- PROTECCIÓN DE LÍMITES (R_Safe) ---
+        # Añadimos un colchón de 15 píxeles para no dejar el recorte al ras
+        margen = 15
+        x_min = max(0, x - margen)
+        y_min = max(0, y - margen)
+        x_max = min(w, x + w_box + margen)
+        y_max = min(h, y + h_box + margen)
+        
+        # Aplicar la máscara para limpiar completamente el fondo a negro puro absoluto
+        objeto_limpio = cv2.bitwise_and(img_bgr, img_bgr, mask=mascara_binaria)
+        
+        # Extraer el recorte final perfecto
+        recorte_perfecto = objeto_limpio[y_min:y_max, x_min:x_max]
+        return recorte_perfecto
+        
+    except Exception as e:
+        print(f"⚠️ Error durante GrabCut: {e}. Usando imagen original.")
+        return img_bgr
+
+
+def extraer_borde_objeto(img_bgr):
+    """
+    Extrae el bounding box ajustado del objeto sobre fondo negro.
+    Retorna la imagen recortada al borde del objeto.
+    Basado en: join.py
+    """
+    gris = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    
+    # Umbral para separar el objeto del fondo negro
+    _, umbral = cv2.threshold(gris, 15, 255, cv2.THRESH_BINARY)
+    
+    # Encontrar los contornos del objeto
+    contornos, _ = cv2.findContours(umbral, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contornos:
+        return img_bgr  # Si falla, devuelve la imagen original
+        
+    # Obtener el contorno más grande
+    c = max(contornos, key=cv2.contourArea)
+    
+    # Calcular la caja de recorte exacta (Bounding Box)
+    x, y, w, h = cv2.boundingRect(c)
+    
+    # Retornar el objeto recortado eliminando excesos de fondo negro
+    return img_bgr[y:y+h, x:x+w]
+
+
+def generar_mapa_plano_superficie(imagenes_recortadas_bgr):
+    """
+    Toma una lista de imágenes recortadas (BGR, fondo negro),
+    extrae el objeto de cada una, las escala a altura uniforme,
+    toma la franja central del 75%, y las concatena horizontalmente.
+    Retorna la imagen del mapa plano (BGR) o None si falla.
+    Basado en: join.py
+    """
+    if len(imagenes_recortadas_bgr) < 2:
+        print("⚠️ Insuficientes vistas para generar mapa plano.")
+        return None
+    
+    # 1. Extraer el borde del objeto de cada imagen recortada
+    objetos_puros = []
+    for img in imagenes_recortadas_bgr:
+        obj = extraer_borde_objeto(img)
+        objetos_puros.append(obj)
+    
+    if len(objetos_puros) < 2:
+        return None
+    
+    # 2. Encontrar el alto promedio para estandarizar la escala
+    alto_objetivo = int(np.mean([img.shape[0] for img in objetos_puros]))
+    
+    franjas_listas = []
+    for img in objetos_puros:
+        # Escalar proporcionalmente manteniendo el aspecto original
+        alto_actual, ancho_actual, _ = img.shape
+        escala = alto_objetivo / alto_actual
+        ancho_nuevo = int(ancho_actual * escala)
+        img_escalada = cv2.resize(img, (ancho_nuevo, alto_objetivo))
+        
+        # Tomar la franja representativa (75% central)
+        w_f = img_escalada.shape[1]
+        ancho_franja = int(w_f * 0.75)
+        inicio_x = int((w_f - ancho_franja) / 2)
+        
+        franja = img_escalada[0:alto_objetivo, inicio_x:inicio_x+ancho_franja]
+        franjas_listas.append(franja)
+    
+    # 3. Concatenar las caras alineadas horizontalmente
+    mapa_plano = np.hstack(franjas_listas)
+    return mapa_plano
+# ======================================================================
+
+def corregir_tipo_por_color(img_bgr, predicted_class):
+    """
+    Analiza los colores del objeto recortado para validar y corregir
+    la clasificación entre manzana y papa.
+    """
+    try:
+        # Convertir a escala de grises para encontrar la máscara del objeto
+        gris = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        _, mask_objeto = cv2.threshold(gris, 15, 255, cv2.THRESH_BINARY)
+        
+        total_px = cv2.countNonZero(mask_objeto)
+        if total_px == 0:
+            return predicted_class, "no_objeto"
+            
+        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+        
+        # Máscaras de color dentro de la zona del objeto
+        # Rojo (Manzanas rojas): H=0-10 y H=160-180
+        mascara_rojo = cv2.bitwise_and(
+            (cv2.inRange(hsv, np.array([0, 50, 40]), np.array([10, 255, 255])) |
+             cv2.inRange(hsv, np.array([160, 50, 40]), np.array([180, 255, 255]))),
+            mask_objeto
+        )
+        # Verde (Manzanas verdes): H=30-85
+        mascara_verde = cv2.bitwise_and(
+            cv2.inRange(hsv, np.array([30, 40, 40]), np.array([85, 255, 255])),
+            mask_objeto
+        )
+        # Café/Marrón (Papas): H=10-28, S=30-200, V=30-180
+        mascara_cafe = cv2.bitwise_and(
+            cv2.inRange(hsv, np.array([10, 30, 30]), np.array([28, 200, 180])),
+            mask_objeto
+        )
+        # Amarillo/Naranja (Papas claras, piel de papa limpia): H=15-35
+        mascara_amarillo = cv2.bitwise_and(
+            cv2.inRange(hsv, np.array([15, 40, 60]), np.array([35, 255, 255])),
+            mask_objeto
+        )
+        
+        px_rojo = cv2.countNonZero(mascara_rojo)
+        px_verde = cv2.countNonZero(mascara_verde)
+        px_cafe = cv2.countNonZero(mascara_cafe)
+        px_amarillo = cv2.countNonZero(mascara_amarillo)
+        
+        pct_rojo = px_rojo / total_px
+        pct_verde = px_verde / total_px
+        pct_cafe = px_cafe / total_px
+        pct_amarillo = px_amarillo / total_px
+        
+        print(f"    [Color Analysis] Red: {pct_rojo:.2%}, Green: {pct_verde:.2%}, Brown: {pct_cafe:.2%}, Yellow: {pct_amarillo:.2%}")
+        
+        partes = predicted_class.split('_')
+        tipo_actual = partes[0]        # 'apple' o 'potato'
+        nivel_dano = partes[-1]        # '0', '1', '2'
+        
+        # Si se predijo manzana (apple)
+        if tipo_actual == "apple":
+            # Pero tiene mucho café o amarillo y muy poco rojo y verde
+            if (pct_cafe > 0.15 or pct_amarillo > 0.20) and (pct_rojo < 0.05 and pct_verde < 0.05):
+                print(f"    [Color Correction] 🔄 Corrección por color: Detectado perfil de PAPA (Brown/Yellow) en predicción de MANZANA.")
+                return f"potato_level_{nivel_dano}", "corrected_to_potato"
+                
+        # Si se predijo papa (potato)
+        elif tipo_actual == "potato":
+            # Pero tiene un color rojo o verde muy marcado
+            if pct_rojo > 0.08 or pct_verde > 0.12:
+                print(f"    [Color Correction] 🔄 Corrección por color: Detectado perfil de MANZANA (Red/Green) en predicción de PAPA.")
+                return f"apple_level_{nivel_dano}", "corrected_to_apple"
+                
+        return predicted_class, "verified"
+    except Exception as e:
+        print(f"    ⚠️ Error en corrección por color: {e}")
+        return predicted_class, "error"
 
 def obtener_siguiente_id_consecuente():
     dirs = [d for d in os.listdir(DIRECTORIO_DATASET) if os.path.isdir(os.path.join(DIRECTORIO_DATASET, d))]
@@ -119,24 +379,77 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
     lista_niveles_dano = []
     lista_confianzas = []
     
-    lista_regiones_borde = []
-    lista_contornos_maximos = [] 
-    
     suma_areas = 0
     anchos = []
     altos = []
     hsv_acumulado = [0, 0, 0]
     caras_validas = 0
 
-    for img in lista_imagenes:
-        # 1. INFERENCIA IA POR CARA (TensorFlow)
+    # --- GUARDADO ESTRUCTURADO (se prepara antes del loop para guardar recortes) ---
+    # Se hace una primera pasada rápida de inferencia provisional para determinar el tipo/nivel
+    # pero el guardado definitivo y la inferencia real se hacen después del GrabCut.
+    
+    # Primero: crear las carpetas de guardado (necesitamos el tipo para el nombre)
+    # Para eso, hacemos una inferencia rápida sobre la primera imagen original
+    tipo_provisional = "desconocido"
+    nivel_provisional = 0
+    try:
+        img_prov = cv2.cvtColor(lista_imagenes[0], cv2.COLOR_BGR2RGB)
+        img_prov = cv2.resize(img_prov, (TAMANO_ENTRADA, TAMANO_ENTRADA))
+        img_prov_batch = np.expand_dims(img_prov.astype(np.float32), axis=0)
+        preds_prov = model.predict(img_prov_batch, verbose=0)
+        if isinstance(preds_prov, dict):
+            pred_prov_logits = preds_prov[list(preds_prov.keys())[0]][0]
+        else:
+            pred_prov_logits = preds_prov[0]
+        class_id_prov = int(np.argmax(pred_prov_logits))
+        if class_id_prov < len(CLASES_MODELO):
+            partes_prov = CLASES_MODELO[class_id_prov].split('_')
+            tipo_provisional = partes_prov[0]
+            nivel_provisional = int(partes_prov[-1])
+    except Exception:
+        pass
+
+    tipo_carpeta = "manzana" if tipo_provisional == "apple" else "papa" if tipo_provisional == "potato" else "desconocido"
+    id_consecuente = obtener_siguiente_id_consecuente()
+    
+    # Nombre provisional (se ajustará con el resultado final si cambia)
+    nombre_raiz_objeto = f"{tipo_carpeta}-level_{nivel_provisional}-{id_consecuente}"
+    ruta_raiz_objeto = os.path.join(DIRECTORIO_DATASET, nombre_raiz_objeto)
+    
+    ruta_originales = os.path.join(ruta_raiz_objeto, "originales")
+    ruta_recortadas = os.path.join(ruta_raiz_objeto, "recortadas")
+    
+    os.makedirs(ruta_originales, exist_ok=True)
+    os.makedirs(ruta_recortadas, exist_ok=True)
+
+    # Lista para almacenar las imágenes recortadas por GrabCut (para el mapa plano)
+    imagenes_recortadas_bgr = []
+
+    for idx, img in enumerate(lista_imagenes):
+        # 1. GUARDAR IMAGEN ORIGINAL
+        cv2.imwrite(os.path.join(ruta_originales, f"vista_{idx+1}.jpg"), img)
+        
+        # 2. RECORTE CON GRABCUT (reemplaza rembg)
+        print(f"[INFO] Aplicando GrabCut a vista {idx+1}...")
+        img_recortada = recortar_objeto_grabcut(img)
+        
+        # Guardar la imagen recortada
+        ruta_recorte = os.path.join(ruta_recortadas, f"recorte_{idx+1}.png")
+        cv2.imwrite(ruta_recorte, img_recortada)
+        print(f"    -> Recorte guardado: {ruta_recorte}")
+        
+        # Almacenar para el mapa plano posterior
+        imagenes_recortadas_bgr.append(img_recortada)
+        
+        # 3. INFERENCIA IA SOBRE LA IMAGEN RECORTADA (no la original)
         tipo_item, nivel_dano, confianza = "desconocido", 0, 0.0
         
         try:
             # Preprocesar: BGR→RGB, resize, batch dim
             # NOTA: El modelo ya incluye Rescaling(1./255) internamente.
             #       NO normalizar aquí para evitar doble normalización.
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img_rgb = cv2.cvtColor(img_recortada, cv2.COLOR_BGR2RGB)
             img_resized = cv2.resize(img_rgb, (TAMANO_ENTRADA, TAMANO_ENTRADA))
             img_batch = np.expand_dims(img_resized.astype(np.float32), axis=0)
             
@@ -155,6 +468,10 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
             
             if class_id < len(CLASES_MODELO):
                 label_name = CLASES_MODELO[class_id]
+                
+                # Validar y corregir la clasificación macro de fruto/tubérculo por color HSV
+                label_name, _ = corregir_tipo_por_color(img_recortada, label_name)
+                
                 partes = label_name.split('_')
                 tipo_item = partes[0]       # 'apple' o 'potato'
                 nivel_dano = int(partes[-1]) # 0, 1 o 2
@@ -165,18 +482,11 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
         lista_niveles_dano.append(nivel_dano)
         lista_confianzas.append(confianza)
 
-        # 2. OPENCV GEOMETRÍA POR CARA
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # 4. OPENCV GEOMETRÍA SOBRE LA IMAGEN RECORTADA
+        gray = cv2.cvtColor(img_recortada, cv2.COLOR_BGR2GRAY)
         
-        clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP_LIMIT, tileGridSize=(8, 8))
-        gray = clahe.apply(gray)
-        
-        blurred = cv2.GaussianBlur(gray, (BLUR_KERNEL, BLUR_KERNEL), 0)
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        
-        kernel_morph = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (MORPH_KERNEL, MORPH_KERNEL))
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel_morph, iterations=MORPH_CLOSE_ITER)
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_morph, iterations=MORPH_OPEN_ITER)
+        # Umbral simple para fondo negro (consistente con GrabCut output)
+        _, thresh = cv2.threshold(gray, 15, 255, cv2.THRESH_BINARY)
         
         contornos, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
@@ -187,20 +497,14 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
             anchos.append(w)
             altos.append(h)
             
-            lista_regiones_borde.append((x, y, w, h))
-            lista_contornos_maximos.append(c)
-            
             mascara = np.zeros(gray.shape, np.uint8)
             cv2.drawContours(mascara, [c], -1, 255, -1)
-            hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            hsv_img = cv2.cvtColor(img_recortada, cv2.COLOR_BGR2HSV)
             mean_hsv = cv2.mean(hsv_img, mask=mascara)
             hsv_acumulado[0] += mean_hsv[0]
             hsv_acumulado[1] += mean_hsv[1]
             hsv_acumulado[2] += mean_hsv[2]
             caras_validas += 1
-        else:
-            lista_regiones_borde.append(None)
-            lista_contornos_maximos.append(None)
 
     tipo_final = max(set(lista_alimentos), key=lista_alimentos.count)
     peor_dano = max(lista_niveles_dano) 
@@ -209,88 +513,26 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
     alimento_dict = "MANZANA" if tipo_final == "apple" else "PAPA" if tipo_final == "potato" else "DESCONOCIDO"
     severidad_dict = f"level {peor_dano}"
 
-    # --- GUARDADO ESTRUCTURADO CON RECORTE PRECISO POR MÁSCARA ---
-    tipo_carpeta = "manzana" if tipo_final == "apple" else "papa" if tipo_final == "potato" else "desconocido"
-    id_consecuente = obtener_siguiente_id_consecuente()
+    # --- RENOMBRAR CARPETA SI EL RESULTADO FINAL DIFIERE DEL PROVISIONAL ---
+    tipo_carpeta_final = "manzana" if tipo_final == "apple" else "papa" if tipo_final == "potato" else "desconocido"
+    nombre_raiz_final = f"{tipo_carpeta_final}-level_{peor_dano}-{id_consecuente}"
     
-    nombre_raiz_objeto = f"{tipo_carpeta}-level_{peor_dano}-{id_consecuente}"
-    ruta_raiz_objeto = os.path.join(DIRECTORIO_DATASET, nombre_raiz_objeto)
-    
-    ruta_originales = os.path.join(ruta_raiz_objeto, "originales")
-    ruta_recortadas = os.path.join(ruta_raiz_objeto, "recortadas")
-    
-    os.makedirs(ruta_originales, exist_ok=True)
-    os.makedirs(ruta_recortadas, exist_ok=True)
-    
-    # Sesión de rembg inicializada una sola vez (evita recargar el modelo por cada vista)
-    session_rembg = new_session("u2net")
-
-    # Lista para almacenar las imágenes procesadas (para el unwrap posterior)
-    imagenes_procesadas_rgba = []
-
-    for idx, img in enumerate(lista_imagenes):
-        cv2.imwrite(os.path.join(ruta_originales, f"vista_{idx+1}.jpg"), img)
-        
-        region = lista_regiones_borde[idx]
-        contorno = lista_contornos_maximos[idx]
-        
-        if region is not None and contorno is not None:
-            x, y, w, h = region
-            alto_img, ancho_img = img.shape[:2]
-            
-            # Margen adaptativo para no cortar bordes del objeto
-            margen_x = int(w * MARGEN_RECORTE)
-            margen_y = int(h * MARGEN_RECORTE)
-            x1 = max(0, x - margen_x)
-            y1 = max(0, y - margen_y)
-            x2 = min(ancho_img, x + w + margen_x)
-            y2 = min(alto_img, y + h + margen_y)
-            
-            img_recortada_bgr = img[y1:y2, x1:x2]
-            
-            # Centrar el recorte en un canvas cuadrado con fondo blanco
-            h_crop, w_crop = img_recortada_bgr.shape[:2]
-            lado = max(h_crop, w_crop)
-            lado_canvas = int(lado * 1.10)  # 10% extra para que rembg trabaje mejor
-            
-            canvas = np.ones((lado_canvas, lado_canvas, 3), dtype=np.uint8) * 255
-            offset_x = (lado_canvas - w_crop) // 2
-            offset_y = (lado_canvas - h_crop) // 2
-            canvas[offset_y:offset_y + h_crop, offset_x:offset_x + w_crop] = img_recortada_bgr
-            
-            # Eliminación de fondo con rembg sobre imagen centrada
-            try:
-                canvas_rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-                imagen_centrada = Image.fromarray(canvas_rgb)
-                
-                imagen_sin_fondo = remove(imagen_centrada, session=session_rembg)
-                
-                # Limpieza del canal alfa para bordes más definidos
-                resultado_np = np.array(imagen_sin_fondo)
-                if resultado_np.shape[2] == 4:
-                    alfa = resultado_np[:, :, 3]
-                    kernel_alfa = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-                    alfa = cv2.morphologyEx(alfa, cv2.MORPH_CLOSE, kernel_alfa)
-                    alfa = cv2.GaussianBlur(alfa, (3, 3), 0)
-                    resultado_np[:, :, 3] = alfa
-                    imagen_sin_fondo = Image.fromarray(resultado_np)
-                
-                ruta_salida_png = os.path.join(ruta_recortadas, f"recorte_{idx+1}.png")
-                imagen_sin_fondo.save(ruta_salida_png, "PNG")
-                
-                # Guardar en memoria para el unwrap cilíndrico
-                imagenes_procesadas_rgba.append(resultado_np)
-                
-            except Exception as e:
-                print(f"❌ Error durante el procesamiento con rembg: {e}")
-                cv2.imwrite(os.path.join(ruta_recortadas, f"recorte_{idx+1}.jpg"), canvas)
-        else:
-            cv2.imwrite(os.path.join(ruta_recortadas, f"recorte_{idx+1}.jpg"), img)
+    if nombre_raiz_final != nombre_raiz_objeto:
+        ruta_raiz_final = os.path.join(DIRECTORIO_DATASET, nombre_raiz_final)
+        try:
+            os.rename(ruta_raiz_objeto, ruta_raiz_final)
+            ruta_raiz_objeto = ruta_raiz_final
+            nombre_raiz_objeto = nombre_raiz_final
+            ruta_originales = os.path.join(ruta_raiz_objeto, "originales")
+            ruta_recortadas = os.path.join(ruta_raiz_objeto, "recortadas")
+            print(f"[INFO] Carpeta renombrada a: {nombre_raiz_final}")
+        except Exception as e:
+            print(f"⚠️ No se pudo renombrar la carpeta: {e}")
 
     # ====================================================================
     # 3.5. GENERACIÓN DE IMAGEN AGRUPADA (LOTE 360 EN REJILLA 2x2)
     # ====================================================================
-    ruta_agrupada = os.path.join(DIRECTORIO_DATASET, f"{id_consecuente}.png")
+    ruta_agrupada = os.path.join(ruta_raiz_objeto, f"{nombre_raiz_objeto}-agrupada.png")
     try:
         h_std, w_std = 360, 640
         resized_imgs = []
@@ -339,88 +581,22 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
         ruta_agrupada = None
 
     # ====================================================================
-    # 4. GENERACIÓN DE TEXTURA PLANA (Unwrap cilíndrico de las 4 vistas)
+    # 4. GENERACIÓN DE MAPA PLANO DE SUPERFICIE (basado en join.py)
     # ====================================================================
     ruta_plano = os.path.join(ruta_raiz_objeto, f"{nombre_raiz_objeto}-plano.png")
     
-    if len(imagenes_procesadas_rgba) >= 2:
-        try:
-            tiras_corregidas = []
-            
-            for img_rgba in imagenes_procesadas_rgba:
-                h_img, w_img = img_rgba.shape[:2]
-                
-                # Encontrar el bounding box del objeto usando el canal alfa
-                alfa_canal = img_rgba[:, :, 3]
-                coords_objeto = np.where(alfa_canal > 20)
-                
-                if len(coords_objeto[0]) == 0:
-                    continue
-                
-                y_min_obj = coords_objeto[0].min()
-                y_max_obj = coords_objeto[0].max()
-                x_min_obj = coords_objeto[1].min()
-                x_max_obj = coords_objeto[1].max()
-                
-                # Recortar al objeto detectado por alfa
-                recorte_alfa = img_rgba[y_min_obj:y_max_obj+1, x_min_obj:x_max_obj+1]
-                h_obj, w_obj = recorte_alfa.shape[:2]
-                
-                if h_obj == 0 or w_obj == 0:
-                    continue
-                
-                # Extraer la franja central (60% del ancho) para evitar distorsión de bordes
-                margen_franja = int(w_obj * 0.20)
-                franja = recorte_alfa[:, margen_franja:w_obj - margen_franja]
-                h_franja, w_franja = franja.shape[:2]
-                
-                if w_franja < 2 or h_franja < 2:
-                    continue
-                
-                # Corrección cilíndrica: arcsin para revertir la perspectiva
-                # Genera un mapa de remapeo que "estira" los bordes comprimidos por la curvatura
-                x_coords = np.arange(w_franja, dtype=np.float32)
-                y_coords = np.arange(h_franja, dtype=np.float32)
-                map_y, map_x = np.meshgrid(y_coords, x_coords, indexing='ij')
-                
-                # Normalizar x a [-1, 1], aplicar arcsin, desnormalizar
-                nx = (map_x / w_franja) * 2.0 - 1.0
-                nx_corregido = np.arcsin(np.clip(nx * 0.95, -1.0, 1.0)) / (np.pi / 2.0)
-                map_x_corregido = ((nx_corregido + 1.0) / 2.0 * w_franja).astype(np.float32)
-                map_y_corregido = map_y.astype(np.float32)
-                
-                franja_corregida = cv2.remap(franja, map_x_corregido, map_y_corregido, cv2.INTER_LINEAR, 
-                                             borderMode=cv2.BORDER_REFLECT_101)
-                
-                tiras_corregidas.append(franja_corregida)
-            
-            if tiras_corregidas:
-                # Normalizar todas las tiras a la misma altura
-                altura_objetivo = max(t.shape[0] for t in tiras_corregidas)
-                tiras_normalizadas = []
-                
-                for tira in tiras_corregidas:
-                    if tira.shape[0] != altura_objetivo:
-                        nuevo_ancho = int(tira.shape[1] * (altura_objetivo / tira.shape[0]))
-                        tira = cv2.resize(tira, (nuevo_ancho, altura_objetivo), interpolation=cv2.INTER_LANCZOS4)
-                    tiras_normalizadas.append(tira)
-                
-                # Unir horizontalmente todas las tiras
-                textura_plana = np.hstack(tiras_normalizadas)
-                
-                # Guardar como PNG con transparencia
-                imagen_plana = Image.fromarray(textura_plana)
-                imagen_plana.save(ruta_plano, "PNG")
-                print(f"🗺️  Textura plana generada: {ruta_plano}")
-            else:
-                print("⚠️  No se pudieron generar tiras para la textura plana.")
-                ruta_plano = None
-                
-        except Exception as e:
-            print(f"❌ Error generando textura plana: {e}")
+    try:
+        mapa_plano = generar_mapa_plano_superficie(imagenes_recortadas_bgr)
+        
+        if mapa_plano is not None:
+            cv2.imwrite(ruta_plano, mapa_plano)
+            print(f"🗺️  Mapa plano de superficie generado: {ruta_plano}")
+        else:
+            print("⚠️  No se pudo generar el mapa plano de superficie.")
             ruta_plano = None
-    else:
-        print("⚠️  Insuficientes vistas procesadas para generar textura plana.")
+            
+    except Exception as e:
+        print(f"❌ Error generando mapa plano: {e}")
         ruta_plano = None
 
     if caras_validas > 0:
@@ -519,12 +695,13 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
             "volumen_calculado_cm3": volumen_cm3,
             "area_superficie_calculada_cm2": area_cm2,
             "indice_forma_esfericidad": esfericidad,
-            "conteo_cavidades_concavidades_profundas": 0,
             "dimensiones_caja_borde_cm": {
                 "ancho": round(ancho_cm, 2),
                 "alto": round(alto_cm, 2),
                 "espesor_profundidad_estimada": round(radio_menor * 2, 2)
-            }
+            },
+            "ruta_imagen_plana_textura": ruta_plano if ruta_plano else "No disponible",
+            "ruta_imagen_agrupada": ruta_agrupada if ruta_agrupada else "No disponible"
         },
         "simulacion_dosimetria_radiacion": {
             "dosis_superficie_objetivo_kGy": resultados_fisica["dosis_emision_requerida_kGy"],
@@ -535,19 +712,8 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
                 "coeficiente_atenuacion_lineal_mu": resultados_fisica["mu_lineal_cm_inv"],
                 "uniformidad_dosis_ratio_Dmax_Dmin": resultados_fisica["uniformidad_dosis_ratio"],
                 "densidad_masa_estimada_g_cm3": resultados_fisica["densidad_g_cm3"],
-                "efectividad_biologica_relativa_EBR": 1.0,
                 "reduccion_logaritmica_carga_bacteriana": resultados_fisica["reduccion_logaritmica_bacteriana"]
             }
-        },
-        "datos_renderizado_malla_grafica": {
-            "info_renderizado": "Datos listos para Three.js",
-            "escala_molde_3d": {
-                "x": esfericidad,
-                "y": 1.0,
-                "z": esfericidad
-            },
-            "ruta_imagen_plana_textura": ruta_plano if ruta_plano else "No disponible",
-            "ruta_imagen_agrupada": ruta_agrupada if ruta_agrupada else "No disponible"
         },
         "prediccion_vida_util_post_irradiacion": {
             "dias_vida_util_restante": vida_util_resultado["dias_vida_util_restante"],

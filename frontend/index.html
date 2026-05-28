@@ -3,11 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iA Ganadería & Control Fitosanitario - Gemelo Digital 360</title>
+    <title>iA Ganadería & Control Fitosanitario - Gemelo Digital 3D</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel CDN (for browser JSX compilation) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #09090e 0%, #11121d 100%);
@@ -47,7 +58,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 24px 5%;
+            padding: 20px 5%;
             border-bottom: 1px solid var(--glass-border);
             background: rgba(9, 9, 14, 0.8);
             backdrop-filter: blur(12px);
@@ -100,7 +111,6 @@
             border-radius: 30px;
             font-size: 13px;
             font-weight: 500;
-            transition: all 0.3s ease;
         }
 
         .status-dot {
@@ -109,7 +119,7 @@
             border-radius: 50%;
             background: var(--danger);
             box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-            animation: pulse-red 2s infinite;
+            transition: all 0.3s ease;
         }
 
         .status-dot.online {
@@ -145,14 +155,7 @@
             flex-direction: column;
             align-items: center;
             gap: 24px;
-            transition: all 0.5s ease;
-        }
-
-        .waiting-card.hidden {
-            opacity: 0;
-            transform: scale(0.9) translateY(30px);
-            pointer-events: none;
-            position: absolute;
+            animation: fadeIn 0.5s ease-out;
         }
 
         .pulse-scanner {
@@ -210,18 +213,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 32px;
             width: 100%;
-            opacity: 0;
-            transform: scale(0.95) translateY(40px);
-            pointer-events: none;
-            position: absolute;
-            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .dashboard-container.active {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            pointer-events: all;
-            position: relative;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         .dashboard-column {
@@ -317,7 +309,6 @@
             transition: all 0.5s ease;
         }
 
-        /* BARRAS DE PROGRESO PREMIUM */
         .progress-bar-container {
             width: 100%;
             background: rgba(255, 255, 255, 0.05);
@@ -334,11 +325,6 @@
             border-radius: 10px;
             box-shadow: 0 0 10px var(--primary-glow);
             transition: width 1s ease-in-out;
-        }
-
-        .progress-bar-fill.success {
-            background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);
-            box-shadow: 0 0 10px var(--success-glow);
         }
 
         .badge {
@@ -368,7 +354,6 @@
             border: 1px solid rgba(245, 158, 11, 0.25);
         }
 
-        /* CAPAS DE ATENUACIÓN FÍSICA */
         .layers-visualization {
             display: flex;
             gap: 4px;
@@ -384,6 +369,25 @@
             transition: all 0.5s ease;
         }
 
+        .btn-reset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            align-self: center;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
+        }
+
         /* ANIMACIONES */
         @keyframes breath {
             0%, 100% { transform: scale(1); opacity: 0.3; }
@@ -395,466 +399,562 @@
             100% { transform: rotate(360deg); }
         }
 
-        @keyframes pulse-red {
-            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
-            50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
-        }
-
         @keyframes pulse-green {
             0%, 100% { box-shadow: 0 0 6px rgba(16, 185, 129, 0.4); }
             50% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.8); }
         }
 
-        /* RESPONSIVE */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-width: 900px) {
             .dashboard-container {
                 grid-template-columns: 1fr;
             }
-            .dashboard-card[style*="grid-column"] {
-                grid-column: span 1 !important;
-            }
-        }
-
-        /* BOTÓN DE RESET/NUEVO ESCANEO */
-        .btn-reset {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-reset:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--primary);
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo-container">
-            <div class="logo-icon">iA</div>
-            <div class="logo-title">
-                <h1>iA Ganadería &amp; Control</h1>
-                <p>Gemelo Digital 360 &amp; Dosimetría SciML</p>
-            </div>
-        </div>
-        <div class="status-badge">
-            <div class="status-dot" id="ws-dot"></div>
-            <span id="ws-text">Desconectado del Backend</span>
-        </div>
-    </header>
+    <div id="root"></div>
 
-    <main>
-        <!-- PANTALLA 1: ESPERA Y SIMULACIÓN (TRIGGER) -->
-        <div class="waiting-card" id="waiting-card">
-            <div class="pulse-scanner">
-                <div class="pulse-circle"></div>
-                <div class="pulse-circle-inner">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
-                    </svg>
-                </div>
-            </div>
-            <h2 class="waiting-title">Esperando Escaneo 360 en Cámara Local...</h2>
-            <p class="waiting-desc">Por favor, presiona <strong>C</strong> en la ventana de cámara abierta en tu servidor local para capturar las 4 imágenes. Al completarse el lote, los resultados se inyectarán de forma automática en este panel en tiempo real.</p>
-        </div>
+    <!-- CÓDIGO REACT Y THREE.JS CON TRANSPILADOR BABEL IN-BROWSER -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-        <!-- PANTALLA 2: DASHBOARD DINÁMICO -->
-        <div class="dashboard-container" id="dashboard">
-            <!-- COLUMNA IZQUIERDA: IA, COLOR Y GEOMETRÍA -->
-            <div class="dashboard-column">
-                <!-- CLASIFICACIÓN IA -->
-                <div class="dashboard-card">
-                    <div class="card-header-area">
-                        <h3 class="card-title">
-                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                            Clasificación de Alimento (Inferencia v3)
-                        </h3>
-                        <span class="badge badge-primary" id="res-tipo">---</span>
-                    </div>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Vegetal Detectado</span>
-                            <span class="metric-value" id="val-tipo">---</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Confianza del Modelo</span>
-                            <span class="metric-value metric-highlight" id="val-conf">0%</span>
-                        </div>
-                    </div>
-                </div>
+        // ====================================================================
+        // COMPONENTE: GEMELO DIGITAL 3D (THREE.JS)
+        // ====================================================================
+        function GemeloDigital3D({ textureUrl, tipo }) {
+            const canvasRef = useRef(null);
+            const rendererRef = useRef(null);
+            const sceneRef = useRef(null);
+            const meshRef = useRef(null);
+            const textureLoaderRef = useRef(new THREE.TextureLoader());
 
-                <!-- COLORIMETRÍA DE SUPERFICIE -->
-                <div class="dashboard-card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.57 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
-                        Análisis Colorimétrico y Superficie
-                    </h3>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Espacio Color HSV Promedio</span>
-                            <span class="metric-value" id="val-hsv">[0, 0, 0]</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Manchas de Daño Aisladas</span>
-                            <span class="metric-value" id="val-manchas">0</span>
-                        </div>
-                    </div>
-                    <div class="metric-block">
-                        <span class="metric-label">Previsualización de Epidermis</span>
-                        <div class="color-preview-block" id="color-swatch">Sin datos</div>
-                    </div>
-                    <div class="metric-block">
-                        <div class="card-header-area" style="margin-bottom: 5px;">
-                            <span class="metric-label">Superficie Piel Dañada</span>
-                            <span class="metric-value" style="font-size: 14px; font-weight: 600;" id="val-piel-pct">0%</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="fill-piel"></div>
-                        </div>
-                    </div>
-                </div>
+            useEffect(() => {
+                if (!canvasRef.current) return;
 
-                <!-- GEOMETRÍA ESPACIAL 3D -->
-                <div class="dashboard-card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                        Métricas Geométricas del Relieve 3D
-                    </h3>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Volumen Calculado</span>
-                            <span class="metric-value" id="val-vol">0 cm³</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Área de Superficie</span>
-                            <span class="metric-value" id="val-area">0 cm²</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Índice de Esfericidad</span>
-                            <span class="metric-value" id="val-esfericidad">0.0</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Dimensiones Acotadas (cm)</span>
-                            <span class="metric-value" style="font-size: 15px;" id="val-dims">0 x 0 x 0</span>
-                        </div>
-                    </div>
-                </div>
+                // 1. Inicializar Escena
+                const scene = new THREE.Scene();
+                sceneRef.current = scene;
 
-                <!-- LOTE DE CAPTURAS 360º (IMAGEN AGRUPADA) -->
-                <div class="dashboard-card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm10 0h7v7h-7zM4 14h7v7H4zm10 0h7v7h-7z"/></svg>
-                        Lote de Capturas 360º (Imagen Agrupada)
-                    </h3>
-                    <div class="metric-block" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; min-height: 180px; padding: 10px;">
-                        <img id="val-grouped-image" src="" alt="Imagen agrupada no disponible" style="max-width: 100%; max-height: 250px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none;">
-                        <span id="grouped-image-placeholder" style="color: var(--text-muted); font-size: 14px;">Cargando lote de imágenes...</span>
-                    </div>
-                </div>
+                // 2. Configurar Cámara
+                const width = canvasRef.current.clientWidth || 300;
+                const height = canvasRef.current.clientHeight || 300;
+                const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+                camera.position.set(0, 0, 4);
 
-                <!-- TEXTURA PLANA DESENROLLADA 360 -->
-                <div class="dashboard-card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                        Textura Plana Cilíndrica Desenrollada (360º)
-                    </h3>
-                    <div class="metric-block" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; min-height: 180px; padding: 10px;">
-                        <img id="val-flat-texture" src="" alt="Textura 360° no disponible" style="max-width: 100%; max-height: 250px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none;">
-                        <span id="flat-texture-placeholder" style="color: var(--text-muted); font-size: 14px;">Cargando mapa de textura...</span>
-                    </div>
-                </div>
-            </div>
+                // 3. Configurar Renderizador WebGL
+                const renderer = new THREE.WebGLRenderer({
+                    canvas: canvasRef.current,
+                    antialias: true,
+                    alpha: true
+                });
+                renderer.setSize(width, height);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                rendererRef.current = renderer;
 
-            <!-- COLUMNA DERECHA: DOSIMETRÍA, VIDA ÚTIL Y FINANZAS B2B -->
-            <div class="dashboard-column">
-                <!-- DOSIMETRÍA NUCLEAR -->
-                <div class="dashboard-card">
-                    <div class="card-header-area">
-                        <h3 class="card-title">
-                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-                            Planificación de Dosimetría Nuclear
-                        </h3>
-                        <span class="badge badge-success" id="res-proposito">Estándar</span>
-                    </div>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Dosis de Superficie Requerida</span>
-                            <span class="metric-value metric-highlight" id="val-dosis">0 kGy</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Reducción Microbiana</span>
-                            <span class="metric-value" id="val-red-bact">0.0 Log</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Uniformidad Dmax/Dmin</span>
-                            <span class="metric-value" id="val-uniformidad">1.0</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Energía Depositada</span>
-                            <span class="metric-value" id="val-energia">0 J</span>
-                        </div>
-                    </div>
-                    <div class="metric-block">
-                        <span class="metric-label">Atenuación de Energía Hacia el Núcleo (8 Capas)</span>
-                        <div class="layers-visualization" id="layers-vis">
-                            <!-- Capas inyectadas por JS -->
-                        </div>
+                // 4. Luces
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+                scene.add(ambientLight);
+
+                const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight1.position.set(5, 5, 5);
+                scene.add(dirLight1);
+
+                const dirLight2 = new THREE.DirectionalLight(0x8b5cf6, 0.5);
+                dirLight2.position.set(-5, -5, 2);
+                scene.add(dirLight2);
+
+                // 5. Geometría Inteligente segun el tipo de Alimento
+                let geometry;
+                const isPotato = tipo && (tipo.toLowerCase() === 'papa' || tipo.toLowerCase() === 'potato');
+
+                if (isPotato) {
+                    // Geometría elipsoide irregular de papa
+                    geometry = new THREE.SphereGeometry(1.2, 40, 40);
+                    const position = geometry.attributes.position;
+                    for (let i = 0; i < position.count; i++) {
+                        const x = position.getX(i);
+                        const y = position.getY(i);
+                        const z = position.getZ(i);
+                        
+                        // Elongar en el eje Y y añadir distorsiones orgánicas
+                        position.setY(i, y * 1.3);
+                        const factor = 1 + Math.sin(y * 2) * 0.08 + Math.cos(x * 3) * 0.04;
+                        position.setX(i, x * factor);
+                        position.setZ(i, z * factor);
+                    }
+                    geometry.computeVertexNormals();
+                } else {
+                    // Geometría de manzana con hendiduras
+                    geometry = new THREE.SphereGeometry(1.2, 40, 40);
+                    const position = geometry.attributes.position;
+                    for (let i = 0; i < position.count; i++) {
+                        const x = position.getX(i);
+                        const y = position.getY(i);
+                        const z = position.getZ(i);
+                        
+                        // Hendiduras características en la parte superior e inferior
+                        const factor = 1.0 - 0.12 * Math.exp(-y * y * 4);
+                        position.setX(i, x * factor);
+                        position.setZ(i, z * factor);
+                    }
+                    geometry.computeVertexNormals();
+                }
+
+                // 6. Material de alta fidelidad con soporte para texturas
+                const material = new THREE.MeshStandardMaterial({
+                    roughness: 0.6,
+                    metalness: 0.1,
+                    bumpScale: 0.05
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
+                meshRef.current = mesh;
+
+                // 7. Controles de Órbita OrbitControls
+                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.maxDistance = 6;
+                controls.minDistance = 2;
+
+                // 8. Bucle de Animación
+                let animationFrameId;
+                const animate = () => {
+                    controls.update();
+                    if (meshRef.current) {
+                        meshRef.current.rotation.y += 0.003; // Rotación lenta y natural
+                    }
+                    renderer.render(scene, camera);
+                    animationFrameId = requestAnimationFrame(animate);
+                };
+                animate();
+
+                // 9. Resize Handler
+                const handleResize = () => {
+                    if (!canvasRef.current || !rendererRef.current) return;
+                    const w = canvasRef.current.parentNode.clientWidth;
+                    const h = canvasRef.current.parentNode.clientHeight;
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    rendererRef.current.setSize(w, h);
+                };
+                window.addEventListener('resize', handleResize);
+
+                return () => {
+                    cancelAnimationFrame(animationFrameId);
+                    window.removeEventListener('resize', handleResize);
+                    geometry.dispose();
+                    material.dispose();
+                    controls.dispose();
+                };
+            }, [tipo]);
+
+            // Carga y mapeo dinámico de la textura cuando se genera
+            useEffect(() => {
+                if (!meshRef.current || !textureUrl) return;
+
+                textureLoaderRef.current.load(
+                    textureUrl,
+                    (texture) => {
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.ClampToEdgeWrapping;
+                        meshRef.current.material.map = texture;
+                        meshRef.current.material.needsUpdate = true;
+                        console.log("Textura 36D cargada con éxito en el canvas Three.js:", textureUrl);
+                    },
+                    undefined,
+                    (err) => console.error("Error cargando textura 3D en Three.js:", err)
+                );
+            }, [textureUrl]);
+
+            return (
+                <div style={{ width: '100%', height: '300px', position: 'relative', overflow: 'hidden', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
+                    <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+                    <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: 'var(--text-muted)', pointerEvents: 'none', background: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: '20px', display: 'flex', gap: '8px' }}>
+                        <span>🖱️ Arrastrar para rotar</span>
+                        <span>|</span>
+                        <span>🔍 Rueda para zoom</span>
                     </div>
                 </div>
-
-                <!-- ESTIMACIÓN DE VIDA ÚTIL -->
-                <div class="dashboard-card">
-                    <div class="card-header-area">
-                        <h3 class="card-title">
-                            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-                            Predicción de Vida Útil Post-Irradiación
-                        </h3>
-                        <span class="badge" id="badge-vida">Normal</span>
-                    </div>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Días de Conservación Restantes</span>
-                            <span class="metric-value metric-highlight" id="val-vida-dias">0 días</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Días Extra Ganados (SciML)</span>
-                            <span class="metric-value" id="val-vida-ganados">+0 días</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SIMULACIÓN COMERCIAL B2B -->
-                <div class="dashboard-card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
-                        Impacto Operativo &amp; Financiero B2B
-                    </h3>
-                    <div class="grid-2">
-                        <div class="metric-block">
-                            <span class="metric-label">Carga Industrial Estándar</span>
-                            <span class="metric-value" id="val-std-kgy">2.5 kGy</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Tiempo Ahorrado de Cinta</span>
-                            <span class="metric-value" id="val-tiempo-ahorrado">0.0 s</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Ahorro por Unidad Procesada</span>
-                            <span class="metric-value" id="val-ahorro-unidad">$0.0000 USD</span>
-                        </div>
-                        <div class="metric-block">
-                            <span class="metric-label">Eficiencia Operativa total</span>
-                            <span class="metric-value metric-highlight" id="val-fin-opt">0%</span>
-                        </div>
-                    </div>
-                    <div class="metric-block" style="background: rgba(139, 92, 246, 0.05); border-color: rgba(139, 92, 246, 0.15);">
-                        <span class="metric-label" style="color: var(--primary);">Beneficio Extrapolado por Tonelada (1000 kg)</span>
-                        <span class="metric-value" style="font-size: 26px; font-weight: 800; color: #a78bfa;" id="val-ahorro-ton">$0.00 USD</span>
-                    </div>
-
-                    <button class="btn-reset" onclick="resetDashboard()">Esperar Siguiente Escaneo</button>
-                </div>
-            </div>
-
-            <!-- JSON CRUDO LITERAL DEL API -->
-            <div class="dashboard-card" style="grid-column: span 2; margin-top: 16px;">
-                <h3 class="card-title">
-                    <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
-                    Contrato de Datos de la API (JSON Crudo Recibido)
-                </h3>
-                <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; color: #a78bfa; white-space: pre-wrap; text-align: left;" id="raw-json-block">
-                    Esperando datos del trigger...
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        // Establecer conexión Websocket con el backend
-        let ws;
-        function connectWebSocket() {
-            const statusDot = document.getElementById("ws-dot");
-            const statusText = document.getElementById("ws-text");
-
-            ws = new WebSocket("ws://localhost:8000/ws");
-
-            ws.onopen = () => {
-                statusDot.classList.add("online");
-                statusText.innerText = "Conectado al Backend Real-Time";
-                console.log("Conectado a WebSockets del Backend!");
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log("Inyección de datos recibida vía Trigger:", data);
-                updateDashboard(data);
-            };
-
-            ws.onclose = () => {
-                statusDot.classList.remove("online");
-                statusText.innerText = "Desconectado. Reconectando...";
-                setTimeout(connectWebSocket, 3000);
-            };
+            );
         }
 
-        // Inyectar datos en las tarjetas del Dashboard y mostrarlo con animación
-        function updateDashboard(data) {
-            // Ocultar pantalla de espera y mostrar dashboard
-            document.getElementById("waiting-card").classList.add("hidden");
-            document.getElementById("dashboard").classList.add("active");
+        // ====================================================================
+        // COMPONENTE: APLICACIÓN PRINCIPAL (REACT)
+        // ====================================================================
+        function App() {
+            const [wsConnected, setWsConnected] = useState(false);
+            const [analisisData, setAnalisisData] = useState(null);
 
-            // Clasificación
-            const tipo = data.clasificacion_alimento.tipo_item_detectado;
-            const confianza = data.clasificacion_alimento.puntaje_confianza_modelo * 100;
-            document.getElementById("val-tipo").innerText = tipo.toUpperCase();
-            document.getElementById("res-tipo").innerText = tipo.toUpperCase();
-            document.getElementById("val-conf").innerText = `${confianza.toFixed(1)}%`;
+            useEffect(() => {
+                let ws;
+                const connect = () => {
+                    ws = new WebSocket("ws://localhost:8000/ws");
+                    
+                    ws.onopen = () => {
+                        setWsConnected(true);
+                        console.log("WebSocket Conectado!");
+                    };
 
-            // Color
-            const hsv = data.analisis_color_superficie.espacio_color_hsv_promedio;
-            document.getElementById("val-hsv").innerText = `[${hsv.join(', ')}]`;
-            document.getElementById("val-manchas").innerText = data.analisis_color_superficie.conteo_manchas_aisladas;
-            
-            const pielPct = data.analisis_color_superficie.porcentaje_superficie_piel_danada;
-            document.getElementById("val-piel-pct").innerText = `${pielPct.toFixed(1)}%`;
-            
-            const fillPiel = document.getElementById("fill-piel");
-            fillPiel.style.width = `${pielPct}%`;
-            if (pielPct > 30) {
-                fillPiel.className = "progress-bar-fill";
-                fillPiel.style.background = "linear-gradient(90deg, #ef4444 0%, #f43f5e 100%)";
-            } else if (pielPct > 10) {
-                fillPiel.className = "progress-bar-fill";
-                fillPiel.style.background = "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)";
-            } else {
-                fillPiel.className = "progress-bar-fill success";
-            }
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            setAnalisisData(data);
+                        } catch (e) {
+                            console.error("Error parseando datos WebSocket:", e);
+                        }
+                    };
 
-            // Epidermis swatch preview (Conversión aproximada de HSV a RGB de previsualización)
-            const colorSwatch = document.getElementById("color-swatch");
-            colorSwatch.innerText = `HSV: [${hsv.join(', ')}]`;
-            // Un color estable para previsualizar papa o manzana
-            if (tipo.toLowerCase() === "papa") {
-                colorSwatch.style.backgroundColor = `hsl(35, ${hsv[1]/2.55}%, ${hsv[2]/2.55}%)`;
-            } else {
-                colorSwatch.style.backgroundColor = `hsl(120, ${hsv[1]/2.55}%, ${hsv[2]/2.55}%)`;
-            }
+                    ws.onclose = () => {
+                        setWsConnected(false);
+                        console.log("WebSocket desconectado, reconectando...");
+                        setTimeout(connect, 3000);
+                    };
+                };
 
-            // Geometría 3D
-            const vol = data.geometria_espacial_3d.volumen_calculado_cm3;
-            const area = data.geometria_espacial_3d.area_superficie_calculada_cm2;
-            const esfericidad = data.geometria_espacial_3d.indice_forma_esfericidad;
-            const dims = data.geometria_espacial_3d.dimensiones_caja_borde_cm;
+                connect();
+                return () => {
+                    if (ws) ws.close();
+                };
+            }, []);
 
-            document.getElementById("val-vol").innerText = `${vol.toFixed(1)} cm³`;
-            document.getElementById("val-area").innerText = `${area.toFixed(1)} cm²`;
-            document.getElementById("val-esfericidad").innerText = esfericidad.toFixed(2);
-            document.getElementById("val-dims").innerText = `${dims.ancho} x ${dims.alto} x ${dims.espesor_profundidad_estimada}`;
+            const resetDashboard = () => {
+                setAnalisisData(null);
+            };
 
-            // Cargar imagen de textura stitched 360 desde analyze/
-            const texturePath = data.datos_renderizado_malla_grafica.ruta_imagen_plana_textura;
-            const imgElement = document.getElementById("val-flat-texture");
-            const placeholder = document.getElementById("flat-texture-placeholder");
+            // Conversión HSV a HSL básico para swatches de color epidérmico
+            const getSwatchColor = (tipo, hsv) => {
+                if (!hsv) return 'rgba(0,0,0,0.2)';
+                const h = hsv[0] * 2; // HSV H de OpenCV es 0-180, en CSS HSL es 0-360
+                const s = hsv[1] / 2.55;
+                const v = hsv[2] / 2.55;
+                
+                // Aproximación rápida a HSL
+                let l = (2 - s / 100) * v / 2;
+                let sat = s * v / (l < 50 ? l * 2 : 200 - l * 2);
+                if (isNaN(sat)) sat = 0;
+                
+                return `hsl(${h}, ${sat}%, ${l}%)`;
+            };
 
-            if (texturePath && texturePath !== "No disponible") {
-                const normalizedPath = texturePath.replace(/\\/g, '/');
-                imgElement.src = `/${normalizedPath}?t=${new Date().getTime()}`;
-                imgElement.style.display = "block";
-                placeholder.style.display = "none";
-            } else {
-                imgElement.style.display = "none";
-                placeholder.style.display = "block";
-                placeholder.innerText = "Textura plana no generada para este objeto.";
-            }
+            return (
+                <React.Fragment>
+                    <header>
+                        <div className="logo-container">
+                            <div className="logo-icon">iA</div>
+                            <div className="logo-title">
+                                <h1>iA Ganadería & Control</h1>
+                                <p>Gemelo Digital 3D React & Three.js</p>
+                            </div>
+                        </div>
+                        <div className="status-badge">
+                            <div className={`status-dot ${wsConnected ? 'online' : ''}`}></div>
+                            <span>{wsConnected ? "Conectado Real-Time" : "Desconectado. Intentando conectar..."}</span>
+                        </div>
+                    </header>
 
-            // Cargar la imagen agrupada 2x2 de capturas desde analyze/
-            const groupedPath = data.datos_renderizado_malla_grafica.ruta_imagen_agrupada;
-            const grpElement = document.getElementById("val-grouped-image");
-            const grpPlaceholder = document.getElementById("grouped-image-placeholder");
+                    <main>
+                        {!analisisData ? (
+                            <div className="waiting-card">
+                                <div className="pulse-scanner">
+                                    <div className="pulse-circle"></div>
+                                    <div className="pulse-circle-inner">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h2 className="waiting-title">Esperando Escaneo 360 en Cámara Local...</h2>
+                                <p className="waiting-desc">
+                                    Por favor, presiona la tecla <strong>C</strong> en la ventana de cámara abierta localmente para capturar los cuadrantes. Al completarse, el backend inyectará de forma automática el modelo 3D y las simulaciones en este panel en tiempo real.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="dashboard-container">
+                                {/* COLUMNA IZQUIERDA: GEMELO 3D E IA */}
+                                <div className="dashboard-column">
+                                    {/* GEMELO DIGITAL 3D */}
+                                    <div className="dashboard-card">
+                                        <h3 className="card-title">
+                                            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                            Gemelo Digital 3D (Render Interactiva)
+                                        </h3>
+                                        <GemeloDigital3D 
+                                            textureUrl={analisisData.geometria_espacial_3d.ruta_imagen_plana_textura !== "No disponible" ? `/${analisisData.geometria_espacial_3d.ruta_imagen_plana_textura}` : null}
+                                            tipo={analisisData.clasificacion_alimento.tipo_item_detectado}
+                                        />
+                                    </div>
 
-            if (groupedPath && groupedPath !== "No disponible") {
-                const normalizedGrpPath = groupedPath.replace(/\\/g, '/');
-                grpElement.src = `/${normalizedGrpPath}?t=${new Date().getTime()}`;
-                grpElement.style.display = "block";
-                grpPlaceholder.style.display = "none";
-            } else {
-                grpElement.style.display = "none";
-                grpPlaceholder.style.display = "block";
-                grpPlaceholder.innerText = "Imagen agrupada no disponible.";
-            }
+                                    {/* CLASIFICACIÓN IA */}
+                                    <div className="dashboard-card">
+                                        <div className="card-header-area">
+                                            <h3 className="card-title">
+                                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                                                Clasificación de Alimento (Inferencia v3)
+                                            </h3>
+                                            <span className="badge badge-primary">{analisisData.clasificacion_alimento.tipo_item_detectado.toUpperCase()}</span>
+                                        </div>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Vegetal Detectado</span>
+                                                <span className="metric-value">{analisisData.clasificacion_alimento.tipo_item_detectado.toUpperCase()}</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Confianza del Modelo</span>
+                                                <span className="metric-value metric-highlight">
+                                                    {(analisisData.clasificacion_alimento.puntaje_confianza_modelo * 100).toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-            // Dosimetría Nuclear
-            const proposito = data.simulacion_dosimetria_radiacion.proposito_fitosanitario_asignado;
-            const dosis = data.simulacion_dosimetria_radiacion.dosis_superficie_objetivo_kGy;
-            const ind = data.simulacion_dosimetria_radiacion.indicadores_dosimetria_fisico_biologica;
+                                    {/* COLOR Y EPIDERMIS */}
+                                    <div className="dashboard-card">
+                                        <h3 className="card-title">
+                                            <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.57 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+                                            Análisis Colorimétrico y Epidermis
+                                        </h3>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Espacio Color HSV Promedio</span>
+                                                <span className="metric-value">
+                                                    [{analisisData.analisis_color_superficie.espacio_color_hsv_promedio.join(', ')}]
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Manchas de Daño Aisladas</span>
+                                                <span className="metric-value">{analisisData.analisis_color_superficie.conteo_manchas_aisladas}</span>
+                                            </div>
+                                        </div>
+                                        <div className="metric-block">
+                                            <span className="metric-label">Previsualización Epidérmica Estabilizada</span>
+                                            <div className="color-preview-block" style={{ backgroundColor: getSwatchColor(analisisData.clasificacion_alimento.tipo_item_detectado, analisisData.analisis_color_superficie.espacio_color_hsv_promedio) }}>
+                                                HSV: [{analisisData.analisis_color_superficie.espacio_color_hsv_promedio.join(', ')}]
+                                            </div>
+                                        </div>
+                                        <div className="metric-block">
+                                            <div className="card-header-area" style={{ marginBottom: '5px' }}>
+                                                <span className="metric-label">Superficie Epidermis Dañada</span>
+                                                <span className="metric-value" style={{ fontSize: '14px', fontWeight: '600' }}>
+                                                    {analisisData.analisis_color_superficie.porcentaje_superficie_piel_danada.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                            <div className="progress-bar-container">
+                                                <div 
+                                                    className="progress-bar-fill" 
+                                                    style={{ 
+                                                        width: `${analisisData.analisis_color_superficie.porcentaje_superficie_piel_danada}%`,
+                                                        background: analisisData.analisis_color_superficie.porcentaje_superficie_piel_danada > 30 
+                                                            ? 'linear-gradient(90deg, #ef4444 0%, #f43f5e 100%)'
+                                                            : analisisData.analisis_color_superficie.porcentaje_superficie_piel_danada > 10
+                                                            ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
+                                                            : 'linear-gradient(90deg, var(--success) 0%, #34d399 100%)'
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-            document.getElementById("res-proposito").innerText = proposito;
-            document.getElementById("val-dosis").innerText = `${dosis.toFixed(3)} kGy`;
-            document.getElementById("val-red-bact").innerText = `${ind.reduccion_logaritmica_carga_bacteriana.toFixed(1)} Log`;
-            document.getElementById("val-uniformidad").innerText = `${ind.uniformidad_dosis_ratio_Dmax_Dmin.toFixed(2)} : 1`;
-            document.getElementById("val-energia").innerText = `${ind.energia_depositada_total_Joules.toFixed(1)} J`;
+                                    {/* MÉTRICAS GEOMÉTRICAS */}
+                                    <div className="dashboard-card">
+                                        <h3 className="card-title">
+                                            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                            Dimensiones y Volumen Espacial
+                                        </h3>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Volumen Calculado</span>
+                                                <span className="metric-value">{analisisData.geometria_espacial_3d.volumen_calculado_cm3.toFixed(1)} cm³</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Área de Superficie</span>
+                                                <span className="metric-value">{analisisData.geometria_espacial_3d.area_superficie_calculada_cm2.toFixed(1)} cm²</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Índice de Esfericidad</span>
+                                                <span className="metric-value">{analisisData.geometria_espacial_3d.indice_forma_esfericidad.toFixed(2)}</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Caja Delimitadora (cm)</span>
+                                                <span className="metric-value" style={{ fontSize: '15px' }}>
+                                                    {analisisData.geometria_espacial_3d.dimensiones_caja_borde_cm.ancho} x {analisisData.geometria_espacial_3d.dimensiones_caja_borde_cm.alto} x {analisisData.geometria_espacial_3d.dimensiones_caja_borde_cm.espesor_profundidad_estimada}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-            // Capas de atenuación
-            const perfil = data.simulacion_dosimetria_radiacion.perfil_atenuacion_profundidad_lineal_kGy;
-            const layersVis = document.getElementById("layers-vis");
-            layersVis.innerHTML = "";
-            perfil.forEach((layerDose, idx) => {
-                const opacity = (layerDose / dosis).toFixed(2);
-                const layerBox = document.createElement("div");
-                layerBox.className = "layer-box";
-                layerBox.style.backgroundColor = `rgba(139, 92, 246, ${opacity})`;
-                layerBox.title = `Capa ${idx+1}: ${layerDose.toFixed(3)} kGy`;
-                layersVis.appendChild(layerBox);
-            });
+                                    {/* LOTE DE FOTOS 360 */}
+                                    <div className="dashboard-card">
+                                        <h3 className="card-title">
+                                            <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm10 0h7v7h-7zM4 14h7v7H4zm10 0h7v7h-7z"/></svg>
+                                            Lote de Capturas Originales (Matriz 2x2 Divisoria)
+                                        </h3>
+                                        <div className="metric-block" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '12px', minHeight: '180px', padding: '10px' }}>
+                                            {analisisData.geometria_espacial_3d.ruta_imagen_agrupada !== "No disponible" ? (
+                                                <img 
+                                                    src={`/${analisisData.geometria_espacial_3d.ruta_imagen_agrupada}`} 
+                                                    alt="Lote 2x2" 
+                                                    style={{ maxWidth: '100%', maxHeight: '250px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }} 
+                                                />
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Matriz de imágenes no disponible.</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
 
-            // Vida útil
-            const vida = data.prediccion_vida_util_post_irradiacion;
-            document.getElementById("val-vida-dias").innerText = `${vida.dias_vida_util_restante} días`;
-            document.getElementById("val-vida-ganados").innerText = `+${vida.dias_ganados_por_irradiacion} días extra`;
-            
-            const badgeVida = document.getElementById("badge-vida");
-            badgeVida.innerText = vida.estado_proyeccion;
-            if (vida.dias_vida_util_restante > 40) {
-                badgeVida.className = "badge badge-success";
-            } else {
-                badgeVida.className = "badge badge-warning";
-            }
+                                {/* COLUMNA DERECHA: DOSIMETRÍA Y FINANZAS */}
+                                <div className="dashboard-column">
+                                    {/* DOSIMETRÍA NUCLEAR */}
+                                    <div className="dashboard-card">
+                                        <div className="card-header-area">
+                                            <h3 className="card-title">
+                                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                                                Planificación de Dosimetría Nuclear
+                                            </h3>
+                                            <span className="badge badge-success">{analisisData.simulacion_dosimetria_radiacion.proposito_fitosanitario_asignado}</span>
+                                        </div>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Dosis de Superficie Planificada</span>
+                                                <span className="metric-value metric-highlight">
+                                                    {analisisData.simulacion_dosimetria_radiacion.dosis_superficie_objetivo_kGy.toFixed(3)} kGy
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Reducción Microbiana</span>
+                                                <span className="metric-value">
+                                                    {analisisData.simulacion_dosimetria_radiacion.indicadores_dosimetria_fisico_biologica.reduccion_logaritmica_carga_bacteriana.toFixed(1)} Log
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Uniformidad Dmax/Dmin</span>
+                                                <span className="metric-value">
+                                                    {analisisData.simulacion_dosimetria_radiacion.indicadores_dosimetria_fisico_biologica.uniformidad_dosis_ratio_Dmax_Dmin.toFixed(2)} : 1
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Energía Absorbida Total</span>
+                                                <span className="metric-value">
+                                                    {analisisData.simulacion_dosimetria_radiacion.indicadores_dosimetria_fisico_biologica.energia_depositada_total_Joules.toFixed(1)} J
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="metric-block">
+                                            <span className="metric-label">Atenuación Radial de Energía hacia el Núcleo (8 Capas)</span>
+                                            <div className="layers-visualization">
+                                                {analisisData.simulacion_dosimetria_radiacion.perfil_atenuacion_profundidad_lineal_kGy.map((layerDose, idx) => {
+                                                    const opacity = (layerDose / analisisData.simulacion_dosimetria_radiacion.dosis_superficie_objetivo_kGy).toFixed(2);
+                                                    return (
+                                                        <div 
+                                                            key={idx}
+                                                            className="layer-box"
+                                                            style={{ backgroundColor: `rgba(139, 92, 246, ${opacity})` }}
+                                                            title={`Capa ${idx+1}: ${layerDose.toFixed(3)} kGy`}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
 
-            // Finanzas B2B
-            const fin = data.simulacion_impacto_financiero_operativo;
-            document.getElementById("val-std-kgy").innerText = `${fin.dosis_estandar_industria_kGy.toFixed(2)} kGy`;
-            document.getElementById("val-tiempo-ahorrado").innerText = `${fin.tiempo_procesamiento_ahorrado_segundos.toFixed(1)} s`;
-            document.getElementById("val-ahorro-unidad").innerText = `$${fin.ahorro_directo_por_unidad_usd.toFixed(4)} USD`;
-            document.getElementById("val-fin-opt").innerText = `${fin.porcentaje_optimizacion_throughput.toFixed(1)}%`;
-            document.getElementById("val-ahorro-ton").innerText = `$${fin.ahorro_proyectado_por_tonelada_usd.toFixed(2)} USD`;
+                                    {/* VIDA ÚTIL */}
+                                    <div className="dashboard-card">
+                                        <div className="card-header-area">
+                                            <h3 className="card-title">
+                                                <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                                                Cinética de Conservación Post-Irradiación
+                                            </h3>
+                                            <span className={`badge ${analisisData.prediccion_vida_util_post_irradiacion.dias_vida_util_restante > 40 ? 'badge-success' : 'badge-warning'}`}>
+                                                {analisisData.prediccion_vida_util_post_irradiacion.estado_proyeccion}
+                                            </span>
+                                        </div>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Días de Conservación Proyectados</span>
+                                                <span className="metric-value metric-highlight">
+                                                    {analisisData.prediccion_vida_util_post_irradiacion.dias_vida_util_restante} días
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Días Extra Ganados (SciML)</span>
+                                                <span className="metric-value">
+                                                    +{analisisData.prediccion_vida_util_post_irradiacion.dias_ganados_por_irradiacion} días
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-            // Mostrar el JSON recibido literalmente
-            document.getElementById("raw-json-block").innerText = JSON.stringify(data, null, 4);
+                                    {/* SIMULACIÓN FINANCIERA B2B */}
+                                    <div className="dashboard-card">
+                                        <h3 className="card-title">
+                                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                                            Impacto Comercial & Planta B2B
+                                        </h3>
+                                        <div className="grid-2">
+                                            <div className="metric-block">
+                                                <span className="metric-label">Dosis Estándar Industrial</span>
+                                                <span className="metric-value">{analisisData.simulacion_impacto_financiero_operativo.dosis_estandar_industria_kGy.toFixed(2)} kGy</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Tiempo de Cinta Optimizado</span>
+                                                <span className="metric-value">{analisisData.simulacion_impacto_financiero_operativo.tiempo_procesamiento_ahorrado_segundos.toFixed(1)} s</span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Ahorro por Unidad Procesada</span>
+                                                <span className="metric-value" style={{ fontSize: '16px' }}>
+                                                    ${analisisData.simulacion_impacto_financiero_operativo.ahorro_directo_por_unidad_usd.toFixed(4)} USD
+                                                </span>
+                                            </div>
+                                            <div className="metric-block">
+                                                <span className="metric-label">Eficiencia Operativa Total</span>
+                                                <span className="metric-value metric-highlight">
+                                                    {analisisData.simulacion_impacto_financiero_operativo.porcentaje_optimizacion_throughput.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="metric-block" style={{ background: 'rgba(139, 92, 246, 0.05)', borderColor: 'rgba(139, 92, 246, 0.15)' }}>
+                                            <span className="metric-label" style={{ color: 'var(--primary)' }}>Ahorro Proyectado por Tonelada</span>
+                                            <span className="metric-value" style={{ fontSize: '26px', fontWeight: '800', color: '#a78bfa' }}>
+                                                ${analisisData.simulacion_impacto_financiero_operativo.ahorro_proyectado_por_tonelada_usd.toFixed(2)} USD
+                                            </span>
+                                        </div>
+
+                                        <button className="btn-reset" onClick={resetDashboard}>Esperar Siguiente Escaneo</button>
+                                    </div>
+                                </div>
+
+                                {/* CONTRATO JSON EN BRUTO */}
+                                <div className="dashboard-card" style={{ gridColumn: 'span 2', marginTop: '16px' }}>
+                                    <h3 className="card-title">
+                                        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                                        Contrato de Datos de la API (JSON Crudo Recibido)
+                                    </h3>
+                                    <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '20px', fontFamily: 'monospace', fontSize: '13px', maxHeight: '400px', overflowY: 'auto', color: '#a78bfa', whiteSpace: 'pre-wrap', textAlign: 'left' }}>
+                                        {JSON.stringify(analisisData, null, 4)}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </React.Fragment>
+            );
         }
 
-        // Reiniciar dashboard para esperar siguiente escaneo
-        function resetDashboard() {
-            document.getElementById("dashboard").classList.remove("active");
-            document.getElementById("waiting-card").classList.remove("hidden");
-            document.getElementById("raw-json-block").innerText = "Esperando datos del trigger...";
-            document.getElementById("val-grouped-image").style.display = "none";
-            document.getElementById("grouped-image-placeholder").style.display = "block";
-            document.getElementById("grouped-image-placeholder").innerText = "Cargando lote de imágenes...";
-            document.getElementById("val-flat-texture").style.display = "none";
-            document.getElementById("flat-texture-placeholder").style.display = "block";
-            document.getElementById("flat-texture-placeholder").innerText = "Cargando mapa de textura...";
-        }
-
-        // Conectar al cargar
-        window.onload = connectWebSocket;
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
