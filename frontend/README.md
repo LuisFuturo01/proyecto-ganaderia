@@ -18,8 +18,9 @@ El componente principal de Three.js renderiza una geometría que se deforma org�
 - **Manzana**: Modifica una esfera para generar la hendidura característica en la base y el tope superior del fruto.
 - **Mapeo de Textura 360°**: Carga de forma dinámica la textura cilíndrica desenrollada generada por OpenCV (`ruta_imagen_plana_textura`) y la aplica como un mapa de textura (`MeshStandardMaterial.map`), envolviendo el modelo en 3D para reflejar su aspecto real.
 
-### 2. Conexión WebSocket Real-Time
-Se conecta al canal `/ws` de FastAPI. Al recibir el contrato JSON, pasa el estado de espera (Trigger) al Dashboard en milisegundos de forma transparente y reactiva.
+### 2. Conexión WebSocket Real-Time & JSON Base64
+- Se conecta al canal `/ws` de FastAPI. Al recibir el contrato JSON, pasa el estado de espera (Trigger) al Dashboard en milisegundos de forma transparente y reactiva.
+- Soporta el envío directo de las 4 imágenes en un solo lote JSON en formato Base64 (`/predict-360-json`). El backend procesa las imágenes y empuja el resultado completo al canal de WebSockets para actualizar el Dashboard de manera asíncrona, eliminando la necesidad de capturas de cámara física.
 
 ### 3. Visualizaciones Avanzadas
 - **Capa de Atenuación Radial**: Renderizado dinámico de 8 bloques de color que reflejan la atenuación de la radiación ionizante según la penetración lineal (kGy).

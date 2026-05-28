@@ -106,6 +106,9 @@ Si deseas realizar la inferencia y simulación desde servicios de terceros (como
 - **POST `/predict-360`**: Endpoint unificado de Gemelo Digital 3D de alta fidelidad.
   - Parámetros: `file1`, `file2` (opcional), `file3` (opcional), `file4` (opcional).
   - Devuelve el JSON unificado con la clasificación corregida, coordenadas geométricas, curvas dosimétricas radiales, estimación de conservación y los datos de impacto financiero B2B.
+- **POST `/predict-360-json`**: Endpoint que recibe las 4 imágenes en formato Base64 dentro de un solo cuerpo JSON.
+  - Formato payload: `{"images": ["data:image/jpeg;base64,...", "...", "...", "..."]}`
+  - Procesa el lote, guarda el análisis en `analyze/`, desencadena un trigger WebSockets automático para actualizar el frontend reactivo en tiempo real y devuelve el mismo JSON estructurado de resultados.
 
 ---
 

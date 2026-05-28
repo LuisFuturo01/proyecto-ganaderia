@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from typing import List
+import base64
 
 # Importaciones locales del motor de procesamiento
 from process.captura import esperar_y_capturar_objeto
@@ -47,6 +48,7 @@ manager = ConnectionManager()
 origins = [
     "http://localhost",
     "http://localhost:3000",
+    "http://localhost:5173",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "*",
@@ -64,15 +66,14 @@ app.add_middleware(
 from process.procesamiento import MODELO_GLOBAL
 
 # Servir archivos estáticos del frontend en la raíz del servidor
-if os.path.exists("frontend"):
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
-    
-    app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-    
-    @app.get("/")
-    async def get_index():
-        return FileResponse("frontend/index.html")
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+async def get_index():
+    """
+    Redirige la raíz del servidor al puerto del frontend oficial corriendo en Vite (http://localhost:5173)
+    """
+    return RedirectResponse(url="http://localhost:5173")
 
 # Servir la carpeta de análisis (analyze) de forma estática para cargar imágenes en el frontend
 if os.path.exists("analyze") or not os.path.exists("analyze"):
@@ -191,6 +192,52 @@ async def predict_360(
     except Exception as e:
         return {"error": f"Error procesando el lote 360: {str(e)}"}
 
+@app.post("/predict-360-json")
+async def predict_360_json(payload: dict):
+    """
+    Endpoint alternativo que recibe las 4 imágenes en formato Base64 dentro de un JSON,
+    las procesa de la misma manera que el flujo interactivo local, y realiza un trigger
+    directo (broadcast) al frontend en tiempo real.
+    """
+    try:
+        images_base64 = payload.get("images", [])
+        if not images_base64:
+            return {"error": "No se proporcionaron imágenes en el JSON."}
+            
+        cv2_images = []
+        for idx, img_b64 in enumerate(images_base64):
+            if not img_b64:
+                continue
+                
+            # Limpiar cabecera data-uri si viene del frontend (ej: "data:image/jpeg;base64,...")
+            if "," in img_b64:
+                img_b64 = img_b64.split(",")[1]
+                
+            # Decodificar el Base64 a bytes
+            img_bytes = base64.b64decode(img_b64)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if img is not None:
+                cv2_images.append(img)
+                
+        if not cv2_images:
+            return {"error": "Ninguna de las imágenes Base64 proporcionadas es válida."}
+            
+        # Ejecutar consolidación física y matemática
+        print(f"[INFO] Procesando lote 360 vía JSON Base64 con {len(cv2_images)} imágenes...")
+        resultado_json_str = consolidar_analisis_360(cv2_images, model=MODELO_GLOBAL)
+        
+        # Desencadenar trigger (broadcast) en tiempo real al frontend a través de WebSockets
+        print("[INFO] Transmitiendo resultados del análisis al frontend vía WebSockets...")
+        await manager.broadcast(resultado_json_str)
+        
+        # Retornar el JSON estructurado al cliente que hizo la petición
+        return json.loads(resultado_json_str)
+        
+    except Exception as e:
+        return {"error": f"Error procesando el lote 360 JSON: {str(e)}"}
+
 def iniciar_sistema_continuo():
     """
     Flujo tradicional: Abre ventana OpenCV interactiva para capturar imágenes guiadas
@@ -285,6 +332,29 @@ if __name__ == "__main__":
     # Pequeña espera para que el puerto se inicialice
     time.sleep(2.0)
 
+    # 1.2 Arrancar el frontend oficial de Vite automáticamente en segundo plano
+    try:
+        import subprocess
+        frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend_ofi")
+        if os.path.exists(frontend_dir):
+            print("")
+            print(f"  🚀 [LAUNCHER] Iniciando frontend_ofi (Vite) en segundo plano...")
+            # En Windows, usar shell=True para invocar npx de forma correcta
+            subprocess.Popen(
+                ["npx", "vite"],
+                cwd=frontend_dir,
+                shell=True
+            )
+            print("  ✅ [LAUNCHER] Servidor Frontend Oficial (Vite) → INICIADO")
+            print("")
+        else:
+            print(f"  ⚠️  [LAUNCHER] No se encontró la carpeta del frontend oficial en: {frontend_dir}")
+    except Exception as e:
+        print(f"  ⚠️  [LAUNCHER] Error al iniciar el frontend oficial de forma automática: {e}")
+
+    # Espera adicional para que el servidor de Vite comience a escuchar antes de abrir el navegador
+    time.sleep(1.5)
+
     print("")
     print("=" * 64)
     print(f"  ✅ SERVIDOR BACKEND (FastAPI + WebSockets) → ACTIVO")
@@ -292,8 +362,8 @@ if __name__ == "__main__":
     print(f"     Ping:      http://localhost:{PORT}/ping")
     print(f"     WebSocket: ws://localhost:{PORT}/ws")
     print("")
-    print(f"  🌐 FRONTEND DASHBOARD (Servido desde FastAPI)")
-    print(f"     ➜  http://localhost:{PORT}")
+    print(f"  🌐 FRONTEND DASHBOARD OFICIAL (Vite Dev Server)")
+    print(f"     ➜  http://localhost:5173")
     print("")
     print(f"  📡 ENDPOINTS DE LA API:")
     print(f"     POST /predict      → Inferencia rápida (1 imagen)")
@@ -302,12 +372,12 @@ if __name__ == "__main__":
     print("=" * 64)
     print("")
 
-    # 2. Abrir el navegador automáticamente apuntando al frontend
+    # 2. Abrir el navegador automáticamente apuntando al frontend oficial
     try:
-        webbrowser.open(f"http://localhost:{PORT}")
-        print("  🚀 Navegador abierto automáticamente en el frontend.")
+        webbrowser.open("http://localhost:5173")
+        print("  🚀 Navegador abierto automáticamente en el frontend oficial.")
     except Exception:
-        print(f"  ℹ️  Abre manualmente: http://localhost:{PORT}")
+        print("  ℹ️  Abre manualmente: http://localhost:5173")
 
     print("")
 
@@ -323,7 +393,7 @@ if __name__ == "__main__":
         print(f"  ⚠️  No se pudo iniciar la cámara local: {e}")
         print(f"  ℹ️  El sistema sigue activo SIN cámara.")
         print(f"  ℹ️  Puedes enviar imágenes al endpoint POST /predict-360")
-        print(f"      o usar el frontend en http://localhost:{PORT}")
+        print(f"      o usar el frontend oficial en http://localhost:5173")
         print(f"")
         print("=" * 64)
         print("  🟢 SERVIDOR EN EJECUCIÓN — Presiona Ctrl+C para detener")

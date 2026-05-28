@@ -700,8 +700,8 @@ def consolidar_analisis_360(lista_imagenes, model=MODELO_GLOBAL):
                 "alto": round(alto_cm, 2),
                 "espesor_profundidad_estimada": round(radio_menor * 2, 2)
             },
-            "ruta_imagen_plana_textura": ruta_plano if ruta_plano else "No disponible",
-            "ruta_imagen_agrupada": ruta_agrupada if ruta_agrupada else "No disponible"
+            "ruta_imagen_plana_textura": ("/" + ruta_plano.replace("\\", "/")) if ruta_plano else "No disponible",
+            "ruta_imagen_agrupada": ("/" + ruta_agrupada.replace("\\", "/")) if ruta_agrupada else "No disponible"
         },
         "simulacion_dosimetria_radiacion": {
             "dosis_superficie_objetivo_kGy": resultados_fisica["dosis_emision_requerida_kGy"],
