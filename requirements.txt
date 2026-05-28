@@ -1,0 +1,11 @@
+tensorflow>=2.20.0
+opencv-python
+numpy
+Pillow
+rembg
+onnxruntime
+fastapi
+uvicorn
+python-multipart
+pyinstaller
+websockets

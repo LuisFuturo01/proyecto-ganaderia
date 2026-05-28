@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iA Ganadería & Control Fitosanitario - Gemelo Digital 360</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #09090e 0%, #11121d 100%);
+            --glass-bg: rgba(25, 27, 44, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.35);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.35);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 5%;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(9, 9, 14, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 20px;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .logo-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(to right, #f3f4f6, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-title p {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--danger);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            animation: pulse-red 2s infinite;
+        }
+
+        .status-dot.online {
+            background: var(--success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            animation: pulse-green 2s infinite;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 5%;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* CARD DE ESPERA (TRIGGER) */
+        .waiting-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            transition: all 0.5s ease;
+        }
+
+        .waiting-card.hidden {
+            opacity: 0;
+            transform: scale(0.9) translateY(30px);
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .pulse-scanner {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-circle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            animation: breath 3s infinite ease-in-out;
+        }
+
+        .pulse-circle-inner {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, #6d28d9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            box-shadow: 0 0 30px var(--primary-glow);
+        }
+
+        .pulse-circle-inner svg {
+            width: 40px;
+            height: 40px;
+            fill: #fff;
+            animation: rotate-icon 10s infinite linear;
+        }
+
+        .waiting-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .waiting-desc {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* DASHBOARD DE RESULTADOS */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            width: 100%;
+            opacity: 0;
+            transform: scale(0.95) translateY(40px);
+            pointer-events: none;
+            position: absolute;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dashboard-container.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: all;
+            position: relative;
+        }
+
+        .dashboard-column {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .dashboard-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--primary);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .metric-block {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .metric-highlight {
+            font-size: 28px;
+            background: linear-gradient(to right, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .color-preview-block {
+            width: 100%;
+            height: 50px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            text-shadow: 0 1px 5px rgba(0,0,0,0.5);
+            transition: all 0.5s ease;
+        }
+
+        /* BARRAS DE PROGRESO PREMIUM */
+        .progress-bar-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            height: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary) 0%, #a78bfa 100%);
+            border-radius: 10px;
+            box-shadow: 0 0 10px var(--primary-glow);
+            transition: width 1s ease-in-out;
+        }
+
+        .progress-bar-fill.success {
+            background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);
+            box-shadow: 0 0 10px var(--success-glow);
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-primary {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+
+        /* CAPAS DE ATENUACIÓN FÍSICA */
+        .layers-visualization {
+            display: flex;
+            gap: 4px;
+            width: 100%;
+            height: 24px;
+            margin-top: 10px;
+        }
+
+        .layer-box {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            transition: all 0.5s ease;
+        }
+
+        /* ANIMACIONES */
+        @keyframes breath {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.15); opacity: 0.65; }
+        }
+
+        @keyframes rotate-icon {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 6px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.8); }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-card[style*="grid-column"] {
+                grid-column: span 1 !important;
+            }
+        }
+
+        /* BOTÓN DE RESET/NUEVO ESCANEO */
+        .btn-reset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            align-self: center;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">iA</div>
+            <div class="logo-title">
+                <h1>iA Ganadería &amp; Control</h1>
+                <p>Gemelo Digital 360 &amp; Dosimetría SciML</p>
+            </div>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot" id="ws-dot"></div>
+            <span id="ws-text">Desconectado del Backend</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- PANTALLA 1: ESPERA Y SIMULACIÓN (TRIGGER) -->
+        <div class="waiting-card" id="waiting-card">
+            <div class="pulse-scanner">
+                <div class="pulse-circle"></div>
+                <div class="pulse-circle-inner">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="waiting-title">Esperando Escaneo 360 en Cámara Local...</h2>
+            <p class="waiting-desc">Por favor, presiona <strong>C</strong> en la ventana de cámara abierta en tu servidor local para capturar las 4 imágenes. Al completarse el lote, los resultados se inyectarán de forma automática en este panel en tiempo real.</p>
+        </div>
+
+        <!-- PANTALLA 2: DASHBOARD DINÁMICO -->
+        <div class="dashboard-container" id="dashboard">
+            <!-- COLUMNA IZQUIERDA: IA, COLOR Y GEOMETRÍA -->
+            <div class="dashboard-column">
+                <!-- CLASIFICACIÓN IA -->
+                <div class="dashboard-card">
+                    <div class="card-header-area">
+                        <h3 class="card-title">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            Clasificación de Alimento (Inferencia v3)
+                        </h3>
+                        <span class="badge badge-primary" id="res-tipo">---</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Vegetal Detectado</span>
+                            <span class="metric-value" id="val-tipo">---</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Confianza del Modelo</span>
+                            <span class="metric-value metric-highlight" id="val-conf">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLORIMETRÍA DE SUPERFICIE -->
+                <div class="dashboard-card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.57 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+                        Análisis Colorimétrico y Superficie
+                    </h3>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Espacio Color HSV Promedio</span>
+                            <span class="metric-value" id="val-hsv">[0, 0, 0]</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Manchas de Daño Aisladas</span>
+                            <span class="metric-value" id="val-manchas">0</span>
+                        </div>
+                    </div>
+                    <div class="metric-block">
+                        <span class="metric-label">Previsualización de Epidermis</span>
+                        <div class="color-preview-block" id="color-swatch">Sin datos</div>
+                    </div>
+                    <div class="metric-block">
+                        <div class="card-header-area" style="margin-bottom: 5px;">
+                            <span class="metric-label">Superficie Piel Dañada</span>
+                            <span class="metric-value" style="font-size: 14px; font-weight: 600;" id="val-piel-pct">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="fill-piel"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GEOMETRÍA ESPACIAL 3D -->
+                <div class="dashboard-card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        Métricas Geométricas del Relieve 3D
+                    </h3>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Volumen Calculado</span>
+                            <span class="metric-value" id="val-vol">0 cm³</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Área de Superficie</span>
+                            <span class="metric-value" id="val-area">0 cm²</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Índice de Esfericidad</span>
+                            <span class="metric-value" id="val-esfericidad">0.0</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Dimensiones Acotadas (cm)</span>
+                            <span class="metric-value" style="font-size: 15px;" id="val-dims">0 x 0 x 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOTE DE CAPTURAS 360º (IMAGEN AGRUPADA) -->
+                <div class="dashboard-card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm10 0h7v7h-7zM4 14h7v7H4zm10 0h7v7h-7z"/></svg>
+                        Lote de Capturas 360º (Imagen Agrupada)
+                    </h3>
+                    <div class="metric-block" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; min-height: 180px; padding: 10px;">
+                        <img id="val-grouped-image" src="" alt="Imagen agrupada no disponible" style="max-width: 100%; max-height: 250px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none;">
+                        <span id="grouped-image-placeholder" style="color: var(--text-muted); font-size: 14px;">Cargando lote de imágenes...</span>
+                    </div>
+                </div>
+
+                <!-- TEXTURA PLANA DESENROLLADA 360 -->
+                <div class="dashboard-card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                        Textura Plana Cilíndrica Desenrollada (360º)
+                    </h3>
+                    <div class="metric-block" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; min-height: 180px; padding: 10px;">
+                        <img id="val-flat-texture" src="" alt="Textura 360° no disponible" style="max-width: 100%; max-height: 250px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none;">
+                        <span id="flat-texture-placeholder" style="color: var(--text-muted); font-size: 14px;">Cargando mapa de textura...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: DOSIMETRÍA, VIDA ÚTIL Y FINANZAS B2B -->
+            <div class="dashboard-column">
+                <!-- DOSIMETRÍA NUCLEAR -->
+                <div class="dashboard-card">
+                    <div class="card-header-area">
+                        <h3 class="card-title">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                            Planificación de Dosimetría Nuclear
+                        </h3>
+                        <span class="badge badge-success" id="res-proposito">Estándar</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Dosis de Superficie Requerida</span>
+                            <span class="metric-value metric-highlight" id="val-dosis">0 kGy</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Reducción Microbiana</span>
+                            <span class="metric-value" id="val-red-bact">0.0 Log</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Uniformidad Dmax/Dmin</span>
+                            <span class="metric-value" id="val-uniformidad">1.0</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Energía Depositada</span>
+                            <span class="metric-value" id="val-energia">0 J</span>
+                        </div>
+                    </div>
+                    <div class="metric-block">
+                        <span class="metric-label">Atenuación de Energía Hacia el Núcleo (8 Capas)</span>
+                        <div class="layers-visualization" id="layers-vis">
+                            <!-- Capas inyectadas por JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESTIMACIÓN DE VIDA ÚTIL -->
+                <div class="dashboard-card">
+                    <div class="card-header-area">
+                        <h3 class="card-title">
+                            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                            Predicción de Vida Útil Post-Irradiación
+                        </h3>
+                        <span class="badge" id="badge-vida">Normal</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Días de Conservación Restantes</span>
+                            <span class="metric-value metric-highlight" id="val-vida-dias">0 días</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Días Extra Ganados (SciML)</span>
+                            <span class="metric-value" id="val-vida-ganados">+0 días</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULACIÓN COMERCIAL B2B -->
+                <div class="dashboard-card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                        Impacto Operativo &amp; Financiero B2B
+                    </h3>
+                    <div class="grid-2">
+                        <div class="metric-block">
+                            <span class="metric-label">Carga Industrial Estándar</span>
+                            <span class="metric-value" id="val-std-kgy">2.5 kGy</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Tiempo Ahorrado de Cinta</span>
+                            <span class="metric-value" id="val-tiempo-ahorrado">0.0 s</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Ahorro por Unidad Procesada</span>
+                            <span class="metric-value" id="val-ahorro-unidad">$0.0000 USD</span>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Eficiencia Operativa total</span>
+                            <span class="metric-value metric-highlight" id="val-fin-opt">0%</span>
+                        </div>
+                    </div>
+                    <div class="metric-block" style="background: rgba(139, 92, 246, 0.05); border-color: rgba(139, 92, 246, 0.15);">
+                        <span class="metric-label" style="color: var(--primary);">Beneficio Extrapolado por Tonelada (1000 kg)</span>
+                        <span class="metric-value" style="font-size: 26px; font-weight: 800; color: #a78bfa;" id="val-ahorro-ton">$0.00 USD</span>
+                    </div>
+
+                    <button class="btn-reset" onclick="resetDashboard()">Esperar Siguiente Escaneo</button>
+                </div>
+            </div>
+
+            <!-- JSON CRUDO LITERAL DEL API -->
+            <div class="dashboard-card" style="grid-column: span 2; margin-top: 16px;">
+                <h3 class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                    Contrato de Datos de la API (JSON Crudo Recibido)
+                </h3>
+                <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; color: #a78bfa; white-space: pre-wrap; text-align: left;" id="raw-json-block">
+                    Esperando datos del trigger...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Establecer conexión Websocket con el backend
+        let ws;
+        function connectWebSocket() {
+            const statusDot = document.getElementById("ws-dot");
+            const statusText = document.getElementById("ws-text");
+
+            ws = new WebSocket("ws://localhost:8000/ws");
+
+            ws.onopen = () => {
+                statusDot.classList.add("online");
+                statusText.innerText = "Conectado al Backend Real-Time";
+                console.log("Conectado a WebSockets del Backend!");
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("Inyección de datos recibida vía Trigger:", data);
+                updateDashboard(data);
+            };
+
+            ws.onclose = () => {
+                statusDot.classList.remove("online");
+                statusText.innerText = "Desconectado. Reconectando...";
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // Inyectar datos en las tarjetas del Dashboard y mostrarlo con animación
+        function updateDashboard(data) {
+            // Ocultar pantalla de espera y mostrar dashboard
+            document.getElementById("waiting-card").classList.add("hidden");
+            document.getElementById("dashboard").classList.add("active");
+
+            // Clasificación
+            const tipo = data.clasificacion_alimento.tipo_item_detectado;
+            const confianza = data.clasificacion_alimento.puntaje_confianza_modelo * 100;
+            document.getElementById("val-tipo").innerText = tipo.toUpperCase();
+            document.getElementById("res-tipo").innerText = tipo.toUpperCase();
+            document.getElementById("val-conf").innerText = `${confianza.toFixed(1)}%`;
+
+            // Color
+            const hsv = data.analisis_color_superficie.espacio_color_hsv_promedio;
+            document.getElementById("val-hsv").innerText = `[${hsv.join(', ')}]`;
+            document.getElementById("val-manchas").innerText = data.analisis_color_superficie.conteo_manchas_aisladas;
+            
+            const pielPct = data.analisis_color_superficie.porcentaje_superficie_piel_danada;
+            document.getElementById("val-piel-pct").innerText = `${pielPct.toFixed(1)}%`;
+            
+            const fillPiel = document.getElementById("fill-piel");
+            fillPiel.style.width = `${pielPct}%`;
+            if (pielPct > 30) {
+                fillPiel.className = "progress-bar-fill";
+                fillPiel.style.background = "linear-gradient(90deg, #ef4444 0%, #f43f5e 100%)";
+            } else if (pielPct > 10) {
+                fillPiel.className = "progress-bar-fill";
+                fillPiel.style.background = "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)";
+            } else {
+                fillPiel.className = "progress-bar-fill success";
+            }
+
+            // Epidermis swatch preview (Conversión aproximada de HSV a RGB de previsualización)
+            const colorSwatch = document.getElementById("color-swatch");
+            colorSwatch.innerText = `HSV: [${hsv.join(', ')}]`;
+            // Un color estable para previsualizar papa o manzana
+            if (tipo.toLowerCase() === "papa") {
+                colorSwatch.style.backgroundColor = `hsl(35, ${hsv[1]/2.55}%, ${hsv[2]/2.55}%)`;
+            } else {
+                colorSwatch.style.backgroundColor = `hsl(120, ${hsv[1]/2.55}%, ${hsv[2]/2.55}%)`;
+            }
+
+            // Geometría 3D
+            const vol = data.geometria_espacial_3d.volumen_calculado_cm3;
+            const area = data.geometria_espacial_3d.area_superficie_calculada_cm2;
+            const esfericidad = data.geometria_espacial_3d.indice_forma_esfericidad;
+            const dims = data.geometria_espacial_3d.dimensiones_caja_borde_cm;
+
+            document.getElementById("val-vol").innerText = `${vol.toFixed(1)} cm³`;
+            document.getElementById("val-area").innerText = `${area.toFixed(1)} cm²`;
+            document.getElementById("val-esfericidad").innerText = esfericidad.toFixed(2);
+            document.getElementById("val-dims").innerText = `${dims.ancho} x ${dims.alto} x ${dims.espesor_profundidad_estimada}`;
+
+            // Cargar imagen de textura stitched 360 desde analyze/
+            const texturePath = data.datos_renderizado_malla_grafica.ruta_imagen_plana_textura;
+            const imgElement = document.getElementById("val-flat-texture");
+            const placeholder = document.getElementById("flat-texture-placeholder");
+
+            if (texturePath && texturePath !== "No disponible") {
+                const normalizedPath = texturePath.replace(/\\/g, '/');
+                imgElement.src = `/${normalizedPath}?t=${new Date().getTime()}`;
+                imgElement.style.display = "block";
+                placeholder.style.display = "none";
+            } else {
+                imgElement.style.display = "none";
+                placeholder.style.display = "block";
+                placeholder.innerText = "Textura plana no generada para este objeto.";
+            }
+
+            // Cargar la imagen agrupada 2x2 de capturas desde analyze/
+            const groupedPath = data.datos_renderizado_malla_grafica.ruta_imagen_agrupada;
+            const grpElement = document.getElementById("val-grouped-image");
+            const grpPlaceholder = document.getElementById("grouped-image-placeholder");
+
+            if (groupedPath && groupedPath !== "No disponible") {
+                const normalizedGrpPath = groupedPath.replace(/\\/g, '/');
+                grpElement.src = `/${normalizedGrpPath}?t=${new Date().getTime()}`;
+                grpElement.style.display = "block";
+                grpPlaceholder.style.display = "none";
+            } else {
+                grpElement.style.display = "none";
+                grpPlaceholder.style.display = "block";
+                grpPlaceholder.innerText = "Imagen agrupada no disponible.";
+            }
+
+            // Dosimetría Nuclear
+            const proposito = data.simulacion_dosimetria_radiacion.proposito_fitosanitario_asignado;
+            const dosis = data.simulacion_dosimetria_radiacion.dosis_superficie_objetivo_kGy;
+            const ind = data.simulacion_dosimetria_radiacion.indicadores_dosimetria_fisico_biologica;
+
+            document.getElementById("res-proposito").innerText = proposito;
+            document.getElementById("val-dosis").innerText = `${dosis.toFixed(3)} kGy`;
+            document.getElementById("val-red-bact").innerText = `${ind.reduccion_logaritmica_carga_bacteriana.toFixed(1)} Log`;
+            document.getElementById("val-uniformidad").innerText = `${ind.uniformidad_dosis_ratio_Dmax_Dmin.toFixed(2)} : 1`;
+            document.getElementById("val-energia").innerText = `${ind.energia_depositada_total_Joules.toFixed(1)} J`;
+
+            // Capas de atenuación
+            const perfil = data.simulacion_dosimetria_radiacion.perfil_atenuacion_profundidad_lineal_kGy;
+            const layersVis = document.getElementById("layers-vis");
+            layersVis.innerHTML = "";
+            perfil.forEach((layerDose, idx) => {
+                const opacity = (layerDose / dosis).toFixed(2);
+                const layerBox = document.createElement("div");
+                layerBox.className = "layer-box";
+                layerBox.style.backgroundColor = `rgba(139, 92, 246, ${opacity})`;
+                layerBox.title = `Capa ${idx+1}: ${layerDose.toFixed(3)} kGy`;
+                layersVis.appendChild(layerBox);
+            });
+
+            // Vida útil
+            const vida = data.prediccion_vida_util_post_irradiacion;
+            document.getElementById("val-vida-dias").innerText = `${vida.dias_vida_util_restante} días`;
+            document.getElementById("val-vida-ganados").innerText = `+${vida.dias_ganados_por_irradiacion} días extra`;
+            
+            const badgeVida = document.getElementById("badge-vida");
+            badgeVida.innerText = vida.estado_proyeccion;
+            if (vida.dias_vida_util_restante > 40) {
+                badgeVida.className = "badge badge-success";
+            } else {
+                badgeVida.className = "badge badge-warning";
+            }
+
+            // Finanzas B2B
+            const fin = data.simulacion_impacto_financiero_operativo;
+            document.getElementById("val-std-kgy").innerText = `${fin.dosis_estandar_industria_kGy.toFixed(2)} kGy`;
+            document.getElementById("val-tiempo-ahorrado").innerText = `${fin.tiempo_procesamiento_ahorrado_segundos.toFixed(1)} s`;
+            document.getElementById("val-ahorro-unidad").innerText = `$${fin.ahorro_directo_por_unidad_usd.toFixed(4)} USD`;
+            document.getElementById("val-fin-opt").innerText = `${fin.porcentaje_optimizacion_throughput.toFixed(1)}%`;
+            document.getElementById("val-ahorro-ton").innerText = `$${fin.ahorro_proyectado_por_tonelada_usd.toFixed(2)} USD`;
+
+            // Mostrar el JSON recibido literalmente
+            document.getElementById("raw-json-block").innerText = JSON.stringify(data, null, 4);
+        }
+
+        // Reiniciar dashboard para esperar siguiente escaneo
+        function resetDashboard() {
+            document.getElementById("dashboard").classList.remove("active");
+            document.getElementById("waiting-card").classList.remove("hidden");
+            document.getElementById("raw-json-block").innerText = "Esperando datos del trigger...";
+            document.getElementById("val-grouped-image").style.display = "none";
+            document.getElementById("grouped-image-placeholder").style.display = "block";
+            document.getElementById("grouped-image-placeholder").innerText = "Cargando lote de imágenes...";
+            document.getElementById("val-flat-texture").style.display = "none";
+            document.getElementById("flat-texture-placeholder").style.display = "block";
+            document.getElementById("flat-texture-placeholder").innerText = "Cargando mapa de textura...";
+        }
+
+        // Conectar al cargar
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>
