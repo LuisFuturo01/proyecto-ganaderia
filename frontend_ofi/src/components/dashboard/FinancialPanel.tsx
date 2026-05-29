@@ -12,17 +12,17 @@ export const FinancialPanel: React.FC = () => {
 
   // Destructure direct fields from real backend or calculate smart mocks
   const lifeData = simulationData.prediccion_vida_util_post_irradiacion || {
-    dias_vida_util_restante: 35.5,
-    dias_ganados_por_irradiacion: 12.0,
-    estado_proyeccion: 'Excelente para exportación',
+    dias_vida_util_restante: 0.0,
+    dias_ganados_por_irradiacion: 0.0,
+    estado_proyeccion: '--',
   };
 
   const finData = simulationData.simulacion_impacto_financiero_operativo || {
-    dosis_estandar_industria_kGy: 2.0,
-    tiempo_procesamiento_ahorrado_segundos: 124.5,
-    ahorro_directo_por_unidad_usd: 0.0185,
-    ahorro_proyectado_por_tonelada_usd: 128.45,
-    porcentaje_optimizacion_throughput: 42.8,
+    dosis_estandar_industria_kGy: 0.0,
+    tiempo_procesamiento_ahorrado_segundos: 0.0,
+    ahorro_directo_por_unidad_usd: 0.0,
+    ahorro_proyectado_por_tonelada_usd: 0.0,
+    porcentaje_optimizacion_throughput: 0.0,
   };
 
   return (

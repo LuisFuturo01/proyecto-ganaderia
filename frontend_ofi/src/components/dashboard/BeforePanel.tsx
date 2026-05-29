@@ -59,14 +59,24 @@ export const BeforePanel: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex justify-between items-center bg-surface-elevated/30 p-2.5 rounded border border-border-dim/40">
-            <span className="text-text-secondary">
-              {t('panel_before_lifetime')}
-            </span>
-            <span className="text-rose-default font-bold">
-              {t('panel_before_lifetime_val')}
-            </span>
-          </div>
+          {(() => {
+            const lifeData = simulationData.prediccion_vida_util_post_irradiacion || {
+              dias_vida_util_restante: 0.0,
+              dias_ganados_por_irradiacion: 0.0,
+              estado_proyeccion: '--',
+            };
+            const prevLifetime = Math.max(0, lifeData.dias_vida_util_restante - lifeData.dias_ganados_por_irradiacion);
+            return (
+              <div className="flex justify-between items-center bg-surface-elevated/30 p-2.5 rounded border border-border-dim/40">
+                <span className="text-text-secondary">
+                  {t('panel_before_lifetime')}
+                </span>
+                <span className="text-rose-default font-bold">
+                  ~ {prevLifetime.toFixed(1)} días
+                </span>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

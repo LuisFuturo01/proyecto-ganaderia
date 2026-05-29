@@ -97,11 +97,54 @@ const PROCESSING_STEPS: { step: ProcessingStep; targetProgress: number }[] = [
 // Store
 // ─────────────────────────────────────────────────────
 
-import { MOCK_SIMULATION_DATA } from '../lib/mockData';
+export const INITIAL_EMPTY_DATA: SimulationData = {
+  clasificacion_alimento: {
+    tipo_item_detectado: '' as any, // Vacío para no renderizar vegetal en la cinta 3D
+    puntaje_confianza_modelo: 0,
+  },
+  analisis_color_superficie: {
+    espacio_color_hsv_promedio: [0, 0, 0],
+    porcentaje_superficie_piel_danada: 0,
+    conteo_manchas_aisladas: 0,
+  },
+  geometria_espacial_3d: {
+    volumen_calculado_cm3: 0,
+    area_superficie_calculada_cm2: 0,
+    indice_forma_esfericidad: 0,
+    dimensiones_caja_borde_cm: { ancho: 0, alto: 0, espesor_profundidad_estimada: 0 },
+    ruta_imagen_plana_textura: '',
+    ruta_imagen_agrupada: '',
+  },
+  simulacion_dosimetria_radiacion: {
+    dosis_superficie_objetivo_kGy: 0,
+    proposito_fitosanitario_asignado: '--',
+    perfil_atenuacion_profundidad_lineal_kGy: [0, 0, 0, 0, 0],
+    indicadores_dosimetria_fisico_biologica: {
+      energia_depositada_total_Joules: 0,
+      coeficiente_atenuacion_lineal_mu: 0,
+      uniformidad_dosis_ratio_Dmax_Dmin: 0,
+      densidad_masa_estimada_g_cm3: 0,
+      efectividad_biologica_relativa_EBR: 1.0,
+      reduccion_logaritmica_carga_bacteriana: 0,
+    },
+  },
+  prediccion_vida_util_post_irradiacion: {
+    dias_vida_util_restante: 0,
+    dias_ganados_por_irradiacion: 0,
+    estado_proyeccion: '--',
+  },
+  simulacion_impacto_financiero_operativo: {
+    dosis_estandar_industria_kGy: 0,
+    tiempo_procesamiento_ahorrado_segundos: 0,
+    ahorro_directo_por_unidad_usd: 0,
+    ahorro_proyectado_por_tonelada_usd: 0,
+    porcentaje_optimizacion_throughput: 0,
+  },
+};
 
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
-  // Estado inicial con datos mock por defecto para mostrar el dashboard completo de inmediato
-  simulationData: MOCK_SIMULATION_DATA,
+  // Estado inicial con datos estructurados vacíos para mostrar el dashboard sin crasheos y sin vegetal en 3D
+  simulationData: INITIAL_EMPTY_DATA,
   hasData: true,
   phase: 'idle',
   activeView: 'dashboard',
@@ -119,7 +162,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ simulationData: data, hasData: true }),
 
   clearSimulationData: () =>
-    set({ simulationData: null, hasData: false, phase: 'idle' }),
+    set({ simulationData: INITIAL_EMPTY_DATA, hasData: true, phase: 'idle' }),
 
   setPhase: (phase) => set({ phase }),
 

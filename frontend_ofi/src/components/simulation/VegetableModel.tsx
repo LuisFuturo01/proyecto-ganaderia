@@ -45,8 +45,8 @@ export const VegetableModel: React.FC<VegetableModelProps> = ({
     );
   }, [textureUrl]);
 
-  // Check if real custom mesh data exists from the backend
-  const hasRealMesh = meshData && meshData.arreglo_posicion_vertices && meshData.arreglo_posicion_vertices.length >= 30;
+  // Check if real custom mesh data exists from the backend (Forced to false for instant loading with close procedural shapes)
+  const hasRealMesh = false;
 
   // 1. Generate premium fallback procedural texture based on vegetable class
   const fallbackTexture = useMemo(() => {
@@ -277,6 +277,10 @@ export const VegetableModel: React.FC<VegetableModelProps> = ({
       geometry.deleteAttribute('color');
     }
   }, [geometry, colors, showHeatmap]);
+
+  if (!tipoItem || tipoItem === '') {
+    return null;
+  }
 
   const finalTexture = customTexture || fallbackTexture;
 

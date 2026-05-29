@@ -46,8 +46,6 @@ const AnimatedSceneContent: React.FC = () => {
     }
   });
 
-  if (!simulationData) return null;
-
   return (
     <group>
       {/* Lights - Superior Studio Illumination */}
@@ -75,59 +73,48 @@ const AnimatedSceneContent: React.FC = () => {
       <RadiationBeam active={phase === 'irradiation'} />
 
       {/* Dynamic Vegetable Mesh */}
-      <group ref={vegetableRef} position={[targetX, 0.05, 0]}>
-        <VegetableModel
-          meshData={simulationData.datos_renderizado_malla_grafica}
-          phase={phase}
-          attenuationProfile={simulationData.simulacion_dosimetria_radiacion.perfil_atenuacion_profundidad_lineal_kGy}
-          tipoItem={simulationData.clasificacion_alimento.tipo_item_detectado}
-          dimensiones={simulationData.geometria_espacial_3d.dimensiones_caja_borde_cm}
-          textureUrl={simulationData.geometria_espacial_3d.ruta_imagen_plana_textura}
-        />
-      </group>
+      {simulationData && (
+        <group ref={vegetableRef} position={[targetX, 0.05, 0]}>
+          <VegetableModel
+            meshData={simulationData.datos_renderizado_malla_grafica}
+            phase={phase}
+            attenuationProfile={simulationData.simulacion_dosimetria_radiacion.perfil_atenuacion_profundidad_lineal_kGy}
+            tipoItem={simulationData.clasificacion_alimento.tipo_item_detectado}
+            dimensiones={simulationData.geometria_espacial_3d.dimensiones_caja_borde_cm}
+            textureUrl={simulationData.geometria_espacial_3d.ruta_imagen_plana_textura}
+          />
+        </group>
+      )}
     </group>
   );
 };
 
 export const SimulationScene: React.FC = () => {
-  const { hasData } = useSimulationStore();
-
   return (
     <div className="h-72 w-full rounded-lg overflow-hidden relative border border-border-dim bg-surface-void/45">
       {/* Simulation HUD/Overlay */}
-      <div className="absolute top-3 left-4 z-10 font-mono text-[10px] text-cyan-light select-none">
+      <div className="absolute top-3 left-4 z-10 font-mono text-[10px] text-cyan-light select-none animate-pulse">
         <span>SISTEMA DE ESCANEO 3D & DOSIMETRÍA EN TIEMPO REAL</span>
       </div>
 
-      {!hasData ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-void/90 select-none z-10 text-center px-4">
-          <p className="text-sm font-mono text-text-secondary">
-            [ TELEMETRÍA 3D FUERA DE LÍNEA ]
-          </p>
-          <p className="text-xs text-text-muted mt-1">
-            Por favor, inicie una simulación o suba un lote para energizar la cámara de reconstrucción.
-          </p>
-        </div>
-      ) : (
-        <Canvas
-          shadows
-          camera={{ position: [0, 2.5, 4.5], fov: 40 }}
-          style={{ width: '100%', height: '100%' }}
-        >
-          {/* Cosmic Dark background particles */}
-          <color attach="background" args={['#05070F']} />
-          <Stars radius={100} depth={50} count={1000} factor={4} saturation={0.5} fade speed={1} />
-          
-          <AnimatedSceneContent />
-          
-          <OrbitControls
-            enableZoom={true}
-            maxDistance={12}
-            minDistance={3}
-            maxPolarAngle={Math.PI / 2 - 0.05}
-          />
-        </Canvas>
-      )}
+      <Canvas
+        shadows
+        camera={{ position: [0, 2.5, 4.5], fov: 40 }}
+        style={{ width: '100%', height: '100%' }}
+      >
+        {/* Cosmic Dark background particles */}
+        <color attach="background" args={['#05070F']} />
+        <Stars radius={100} depth={50} count={1000} factor={4} saturation={0.5} fade speed={1} />
+        
+        <AnimatedSceneContent />
+        
+        <OrbitControls
+          enableZoom={true}
+          maxDistance={12}
+          minDistance={3}
+          maxPolarAngle={Math.PI / 2 - 0.05}
+        />
+      </Canvas>
     </div>
   );
 };

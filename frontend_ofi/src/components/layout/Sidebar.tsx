@@ -27,12 +27,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     descKey: 'sidebar_desc_dashboard',
   },
   {
-    id: 'analysis3d',
-    labelKey: 'menu_analysis3d',
-    icon: Box,
-    descKey: 'sidebar_desc_analysis3d',
-  },
-  {
     id: 'dosimetry',
     labelKey: 'menu_dosimetry',
     icon: Zap,
@@ -43,12 +37,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     labelKey: 'menu_comparative',
     icon: Columns,
     descKey: 'sidebar_desc_comparative',
-  },
-  {
-    id: 'reports',
-    labelKey: 'menu_reports',
-    icon: FileSpreadsheet,
-    descKey: 'sidebar_desc_reports',
   },
   {
     id: 'history',

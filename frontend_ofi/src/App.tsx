@@ -23,7 +23,7 @@ import { FinancialPanel } from './components/dashboard/FinancialPanel';
 
 function App() {
   const [showUploader, setShowUploader] = useState(false);
-  const { hasData, activeView } = useSimulationStore();
+  const { hasData, activeView, simulationData } = useSimulationStore();
   const { error } = useApi();
   const { t, tVegetableSimple } = useTranslation();
   
@@ -31,44 +31,8 @@ function App() {
   useWebSocket();
 
   const renderActiveView = () => {
-    // If no data loaded, show interactive image uploader dashboard
-    if (!hasData) {
-      return (
-        <div className="space-y-8 py-6">
-          <ImageUploader />
-          
-          <Card className="p-5 text-center max-w-2xl mx-auto space-y-3 border-border-dim/40 bg-surface-void/35">
-            <p className="text-xs text-text-muted leading-relaxed font-mono">
-              {t('start_desc')}
-            </p>
-            <div className="flex justify-center gap-4 text-[10px] font-mono text-text-muted/80 pt-1">
-              <span className="flex items-center gap-1">
-                <Database className="h-4 w-4 text-cyan-rad" />
-                {t('start_yolo')}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Info className="h-4 w-4 text-cyan-rad" />
-                {t('start_atten')}
-              </span>
-            </div>
-          </Card>
-        </div>
-      );
-    }
 
     switch (activeView) {
-      case 'analysis3d':
-        return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <SimulationScene />
-            </div>
-            <div>
-              <GeometryPanel />
-            </div>
-          </div>
-        );
       case 'dosimetry':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -78,29 +42,6 @@ function App() {
         );
       case 'comparative':
         return <ComparativeView />;
-      case 'reports':
-        return (
-          <Card className="p-6 space-y-4 max-w-xl mx-auto border-cyan-rad/30">
-            <div className="flex items-center space-x-2 text-cyan-rad border-b border-border-dim pb-2">
-              <FileText className="h-5 w-5" />
-              <h3 className="font-heading font-bold uppercase text-sm">{t('rep_title')}</h3>
-            </div>
-            <p className="text-xs text-text-secondary leading-relaxed font-mono">
-              {t('rep_generating')}
-              <br />
-              {t('rep_class')}
-              <br />
-              {t('rep_dose')}
-              <br />
-              {t('rep_microb')}
-              <br />
-              {t('rep_approved')}
-            </p>
-            <button className="px-3 py-1.5 bg-cyan-dark/30 hover:bg-cyan-dark/50 border border-cyan-rad text-cyan-light rounded font-mono text-xs font-bold transition-all">
-              {t('rep_btn_download')}
-            </button>
-          </Card>
-        );
       case 'history':
         return (
           <Card className="p-6 space-y-4 max-w-2xl mx-auto border-border-dim">
@@ -189,6 +130,33 @@ function App() {
 
             {/* B2B Financial & Shelf Life Impact */}
             <FinancialPanel />
+
+            {/* Registro de Vistas Consolidadas (imagen agrupada) */}
+            {simulationData?.geometria_espacial_3d?.ruta_imagen_agrupada && (
+              <Card className="p-6 border-cyan-rad/30 bg-surface-void/45">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 text-cyan-rad border-b border-border-dim/40 pb-2">
+                    <Database className="h-5 w-5 text-cyan-rad" />
+                    <h4 className="text-xs font-mono font-bold tracking-widest uppercase">
+                      CONSOLIDACIÓN MULTI-VISTA 360° (REGISTRO AGRUPADO)
+                    </h4>
+                  </div>
+                  <p className="text-[10px] font-mono text-text-secondary leading-relaxed">
+                    Fotografías secuenciales del objeto (papa o manzana) capturadas a intervalos equidistantes de 90°
+                    y procesadas por el motor de segmentación IA.
+                  </p>
+                  <div className="flex justify-center mt-2">
+                    <div className="max-w-2xl w-full border border-border-dim/50 rounded-lg overflow-hidden shadow-2xl bg-black/60">
+                      <img
+                        src={simulationData.geometria_espacial_3d.ruta_imagen_agrupada}
+                        alt="Consolidación de Vistas 360"
+                        className="w-full h-auto object-contain max-h-[350px] select-none hover:scale-[1.01] transition-transform duration-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Comparativo Quick-View */}
             <div className="border-t border-border-dim/30 pt-6">
