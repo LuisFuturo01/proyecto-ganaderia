@@ -90,24 +90,6 @@ export const Sidebar: React.FC = () => {
           </nav>
         </div>
       </div>
-
-      {/* Telemetry Status Footer inside Sidebar */}
-      <div className="px-6 border-t border-border-dim/50 pt-4 mt-6">
-        <div className="flex items-center space-x-2 text-xs font-mono text-text-secondary">
-          <Activity className="h-4 w-4 text-cyan-rad animate-pulse" />
-          <span className="font-bold">{t('telemetry_title')}</span>
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-mono text-text-muted">
-          <div>
-            <span>{t('telemetry_status')}</span>
-            <span className="block text-nuclear-bright font-bold">{t('telemetry_status_val')}</span>
-          </div>
-          <div>
-            <span>{t('telemetry_hz')}</span>
-            <span className="block text-cyan-light font-bold">60.00 FPS</span>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

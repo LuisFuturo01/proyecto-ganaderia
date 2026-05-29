@@ -88,17 +88,17 @@ function App() {
               <div className="space-y-1">
                 <h4 className="text-xs font-mono font-bold text-white tracking-widest uppercase flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-cyan-rad animate-pulse" />
-                  MÓDULO DE ESCANEO / CARGA MANUAL
+                  {t('uploader_manual_module')}
                 </h4>
                 <p className="text-[10px] font-mono text-text-muted">
-                  Sube múltiples vistas o conecta tu dispositivo de captura para procesar el fruto en tiempo real.
+                  {t('uploader_manual_desc')}
                 </p>
               </div>
               <button
                 onClick={() => setShowUploader(!showUploader)}
                 className="flex items-center space-x-2 px-4 py-2 bg-cyan-dark/25 hover:bg-cyan-dark/45 border border-cyan-rad/50 hover:border-cyan-rad text-cyan-rad rounded text-xs font-mono font-bold transition-all duration-200 cursor-pointer shadow active:scale-95"
               >
-                <span>{showUploader ? 'Ocultar Panel de Carga' : 'Abrir Panel de Carga'}</span>
+                <span>{showUploader ? t('btn_hide_uploader') : t('btn_show_uploader')}</span>
               </button>
             </div>
 
@@ -138,12 +138,11 @@ function App() {
                   <div className="flex items-center space-x-2 text-cyan-rad border-b border-border-dim/40 pb-2">
                     <Database className="h-5 w-5 text-cyan-rad" />
                     <h4 className="text-xs font-mono font-bold tracking-widest uppercase">
-                      CONSOLIDACIÓN MULTI-VISTA 360° (REGISTRO AGRUPADO)
+                      {t('consolidation_title')}
                     </h4>
                   </div>
                   <p className="text-[10px] font-mono text-text-secondary leading-relaxed">
-                    Fotografías secuenciales del objeto (papa o manzana) capturadas a intervalos equidistantes de 90°
-                    y procesadas por el motor de segmentación IA.
+                    {t('consolidation_desc')}
                   </p>
                   <div className="flex justify-center mt-2">
                     <div className="max-w-2xl w-full border border-border-dim/50 rounded-lg overflow-hidden shadow-2xl bg-black/60">

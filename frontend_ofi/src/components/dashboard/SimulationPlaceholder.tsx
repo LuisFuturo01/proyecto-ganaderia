@@ -15,7 +15,6 @@ export const SimulationPlaceholder: React.FC = () => {
       case 'scanning': return 38;
       case 'irradiation': return 62;
       case 'output':
-      case 'comparative':
         return 85;
       case 'idle':
       default:
@@ -91,7 +90,7 @@ export const SimulationPlaceholder: React.FC = () => {
           {/* Station 4: Output */}
           <div className="flex flex-col items-center space-y-1">
             <div className={`p-1.5 rounded-full border transition-all duration-300 ${
-              phase === 'output' || phase === 'comparative'
+              phase === 'output'
                 ? 'bg-nuclear-container/30 border-nuclear text-nuclear-bright shadow-[0_0_10px_rgba(0,255,159,0.3)]'
                 : 'bg-surface-elevated border-border-dim text-text-muted'
             }`}>
@@ -114,7 +113,7 @@ export const SimulationPlaceholder: React.FC = () => {
               <div className={`h-10 w-12 rounded-full border bg-radial transition-all duration-500 ${
                 phase === 'irradiation'
                   ? 'from-radiation-orange/80 to-radiation-red/90 border-radiation-orange scale-110 glow-orange'
-                  : phase === 'output' || phase === 'comparative'
+                  : phase === 'output'
                   ? 'from-nuclear/40 to-nuclear-dark/80 border-nuclear glow-green'
                   : 'from-amber-800 to-amber-950 border-amber-900 shadow-lg'
               }`}>

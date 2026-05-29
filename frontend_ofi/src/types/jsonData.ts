@@ -10,7 +10,7 @@
 // 1. Clasificación del Alimento
 // ─────────────────────────────────────────────────────
 
-/** Identificación básica del vegetal detectado por YOLOv8-seg */
+/** Identificación básica del vegetal detectado por RadioGuard-Analyzer */
 export interface ClasificacionAlimento {
   /** Etiqueta del alimento identificado por el modelo IA */
   tipo_item_detectado: 'papa' | 'manzana' | 'tomate' | 'cebolla' | 'planta';
@@ -158,8 +158,7 @@ export type SimulationPhase =
   | 'reception'
   | 'scanning'
   | 'irradiation'
-  | 'output'
-  | 'comparative';
+  | 'output';
 
 /** Pasos del modal de procesamiento */
 export type ProcessingStep =

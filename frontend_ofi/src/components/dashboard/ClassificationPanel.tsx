@@ -54,7 +54,7 @@ export const ClassificationPanel: React.FC = () => {
 
       <div className="mt-4 pt-3 border-t border-border-dim/50 text-[10px] font-mono text-text-muted flex items-center justify-between">
         <span>{t('class_footer_net')}</span>
-        <span>ID: HNB-2026-YOLO</span>
+        <span>ID: HNB-2026-RGA</span>
       </div>
     </Card>
   );

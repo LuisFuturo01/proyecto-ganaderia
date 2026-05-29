@@ -4,7 +4,7 @@ import type { SimulationData } from '../types/jsonData';
 
 export function useWebSocket() {
   const [connected, setConnected] = useState(false);
-  const { startProcessingSimulation } = useSimulationStore();
+  const { startProgressSimulation, receiveSimulationData } = useSimulationStore();
 
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -28,11 +28,15 @@ export function useWebSocket() {
         ws.onmessage = (event) => {
           try {
             console.log('[RADIOGUARD WS] Datos recibidos de la camara local!');
-            const data: SimulationData = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
             
             if (data && typeof data === 'object') {
-              // Trigger the premium analytical simulation flow in the store
-              startProcessingSimulation(data);
+              if (data.status === 'scanning') {
+                console.log('[RADIOGUARD WS] Escaneo físico iniciado. Abriendo modal...');
+                startProgressSimulation();
+              } else {
+                receiveSimulationData(data as SimulationData);
+              }
             }
           } catch (err) {
             console.error('[RADIOGUARD WS] Error al procesar datos del socket:', err);
@@ -64,7 +68,7 @@ export function useWebSocket() {
         clearTimeout(reconnectTimeout);
       }
     };
-  }, [startProcessingSimulation]);
+  }, [startProgressSimulation, receiveSimulationData]);
 
   return { connected };
 }

@@ -151,7 +151,7 @@ export const ComparativeView: React.FC = () => {
 
   const handleExportReport = () => {
     const report = {
-      sistema: 'RADIOGUARD - Hackathon Nuclear Boliviano 2026',
+      sistema: 'RADIOGUARD - Sistema de Dosimetría Fitosanitaria',
       fecha: new Date().toISOString(),
       clasificacion: simulationData.clasificacion_alimento,
       dosimetria: simulacion_dosimetria_radiacion,

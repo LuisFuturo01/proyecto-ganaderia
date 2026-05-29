@@ -21,12 +21,6 @@ export const ScannerLaser: React.FC<ScannerLaserProps> = ({ active }) => {
 
   return (
     <group>
-      {/* Outer Scanner Ring/Arch structure */}
-      <mesh position={[-1.2, 0, 0]} rotation={[0, 0, 0]}>
-        <torusGeometry args={[1.1, 0.08, 8, 24]} />
-        <meshStandardMaterial color="#0b172a" metalness={0.9} roughness={0.2} />
-      </mesh>
-
       {/* Laser Plane Emitter */}
       <mesh ref={laserRef} position={[-1.2, 0, 0]}>
         <boxGeometry args={[0.02, 1.8, 1.6]} />

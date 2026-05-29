@@ -1,26 +1,11 @@
-import { useRef } from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore';
-import { useApi } from '../../hooks/useApi';
 import { StatusBadge } from '../ui/StatusBadge';
-import { Shield, Upload, Play, Cpu } from 'lucide-react';
+import { Shield, Cpu } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 
 export const Header: React.FC = () => {
   const { phase, language, setLanguage } = useSimulationStore();
   const { t } = useTranslation();
-  const { loadMockData, uploadImagesAndGetSimulation } = useApi();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files).slice(0, 4);
-      uploadImagesAndGetSimulation(filesArray);
-    }
-  };
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
 
   const getSystemStatus = () => {
     if (phase === 'idle') return <StatusBadge status="normal" label={t('sys_status_ready')} />;
@@ -54,12 +39,6 @@ export const Header: React.FC = () => {
 
       {/* Connection & Actions */}
       <div className="flex items-center space-x-4 self-end md:self-auto">
-        <div className="hidden lg:flex items-center space-x-2 bg-surface-void/50 border border-border-dim px-3 py-1.5 rounded text-xs font-mono">
-          <Cpu className="h-3.5 w-3.5 text-cyan-rad" />
-          <span className="text-text-secondary">{t('sys_processor')}</span>
-          <span className="text-nuclear-bright font-bold">YOLOv8-SEG</span>
-        </div>
-
         {/* Language Switcher */}
         <div className="flex items-center bg-surface-void/50 border border-border-dim p-0.5 rounded overflow-hidden">
           <button
@@ -81,37 +60,6 @@ export const Header: React.FC = () => {
             }`}
           >
             EN
-          </button>
-        </div>
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          multiple
-          className="hidden"
-        />
-
-        <div className="flex items-center space-x-2">
-          {/* Subir Lote Button */}
-          <button
-            onClick={handleUploadClick}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-surface-elevated hover:bg-surface-high border border-border-dim hover:border-cyan-rad/50 rounded text-xs font-mono font-bold text-text-primary transition-all duration-200 cursor-pointer shadow-sm hover:shadow-cyan-rad/15 active:scale-95"
-            title={t('tooltip_new_batch')}
-          >
-            <Upload className="h-4 w-4 text-cyan-rad" />
-            <span>{t('btn_new_batch')}</span>
-          </button>
-
-          {/* Cargar Simulador/Mock Button */}
-          <button
-            onClick={loadMockData}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-nuclear-container/20 hover:bg-nuclear-container/40 border border-nuclear-dark hover:border-nuclear-bright rounded text-xs font-mono font-bold text-nuclear-bright transition-all duration-200 cursor-pointer shadow-sm hover:shadow-nuclear/15 active:scale-95"
-            title={t('tooltip_simulate')}
-          >
-            <Play className="h-4 w-4" />
-            <span>{t('btn_simulate')}</span>
           </button>
         </div>
       </div>

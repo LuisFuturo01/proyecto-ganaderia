@@ -30,7 +30,11 @@ interface UseApiReturn {
 
 export function useApi(): UseApiReturn {
   const [error, setError] = useState<string | null>(null);
-  const { startProcessingSimulation } = useSimulationStore();
+  const {
+    startProgressSimulation,
+    receiveSimulationData,
+    closeProcessingModal,
+  } = useSimulationStore();
 
   /**
    * Sube múltiples imágenes al backend (predict-360) y obtiene los datos de simulación.
@@ -43,6 +47,9 @@ export function useApi(): UseApiReturn {
         setError('No se seleccionaron archivos');
         return;
       }
+
+      // Disparar inmediatamente la simulación visual asíncrona
+      startProgressSimulation();
 
       try {
         let data: SimulationData;
@@ -85,16 +92,18 @@ export function useApi(): UseApiReturn {
           data = { ...MOCK_SIMULATION_DATA };
         }
 
-        // Iniciar simulación de procesamiento con los datos
-        startProcessingSimulation(data);
+        // Cargar los datos y forzar el progreso al 100%
+        receiveSimulationData(data);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Error desconocido';
         setError(message);
         console.error('[RADIOGUARD API]', message);
+        // Cerrar el modal en caso de error crítico sin datos utilizables
+        closeProcessingModal();
       }
     },
-    [startProcessingSimulation]
+    [startProgressSimulation, receiveSimulationData, closeProcessingModal]
   );
 
   /**
@@ -102,8 +111,11 @@ export function useApi(): UseApiReturn {
    */
   const loadMockData = useCallback(() => {
     setError(null);
-    startProcessingSimulation({ ...MOCK_SIMULATION_DATA });
-  }, [startProcessingSimulation]);
+    startProgressSimulation();
+    setTimeout(() => {
+      receiveSimulationData({ ...MOCK_SIMULATION_DATA });
+    }, 400);
+  }, [startProgressSimulation, receiveSimulationData]);
 
   const clearError = useCallback(() => setError(null), []);
 

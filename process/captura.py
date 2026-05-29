@@ -68,6 +68,13 @@ def esperar_y_capturar_objeto(cap, intervalo_segundos=1.0, num_fotos=4):
             imagenes_capturadas.append(frame.copy())
             fotos_tomadas += 1
             print(f"📸 [PULSACIÓN 'C'] Vista {fotos_tomadas}/{num_fotos} capturada de forma manual.")
+            if fotos_tomadas == 1:
+                try:
+                    import requests
+                    requests.post("http://localhost:8000/api/update", json={"status": "scanning"})
+                    print("[INFO] Evento trigger 'scanning' enviado al frontend con éxito!")
+                except Exception as e:
+                    print(f"[WARNING] No se pudo notificar el inicio de escaneo: {e}")
             
         elif key == ord('q'):
             return None

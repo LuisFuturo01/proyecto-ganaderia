@@ -3,10 +3,11 @@
  * 
  * Gestiona todo el estado de la simulación:
  * - Datos JSON del backend
- * - Fase actual del flujo (reception → comparative)
+ * - Fase actual del flujo (reception → output)
  * - Vista activa del menú lateral
  * - Estado del modal de procesamiento
  * - Indicadores de carga y progreso
+ * - targetPhase para animación de deslizamiento por la cinta
  */
 
 import { create } from 'zustand';
@@ -18,6 +19,22 @@ import type {
 } from '../types/jsonData';
 
 // ─────────────────────────────────────────────────────
+// Estaciones de la cinta transportadora con posiciones X
+// ─────────────────────────────────────────────────────
+
+export interface BeltStation {
+  id: SimulationPhase;
+  x: number;
+}
+
+export const BELT_STATIONS: BeltStation[] = [
+  { id: 'reception',   x: -4.5 },
+  { id: 'scanning',    x: -1.5 },
+  { id: 'irradiation', x:  1.5 },
+  { id: 'output',      x:  4.5 },
+];
+
+// ─────────────────────────────────────────────────────
 // Interfaz del Store
 // ─────────────────────────────────────────────────────
 
@@ -26,8 +43,14 @@ interface SimulationStore {
   simulationData: SimulationData | null;
   hasData: boolean;
 
-  // Fase del flujo de simulación
+  // Fase actual (donde el objeto ESTÁ ahora en la cinta)
   phase: SimulationPhase;
+
+  // Fase destino (a donde el objeto se DIRIGE — para animación de deslizamiento)
+  targetPhase: SimulationPhase;
+
+  // Flag de si el objeto está en movimiento
+  isMoving: boolean;
 
   // Vista activa del sidebar
   activeView: ActiveView;
@@ -40,6 +63,10 @@ interface SimulationStore {
   isProcessingModalOpen: boolean;
   processingStep: ProcessingStep;
   processingProgress: number;
+
+  // Datos asíncronos y estado de simulación activa
+  pendingSimulationData: SimulationData | null;
+  isSimulating: boolean;
 
   // FPS counter
   fps: number;
@@ -55,8 +82,14 @@ interface SimulationStore {
   /** Limpiar datos */
   clearSimulationData: () => void;
 
-  /** Cambiar fase del flujo */
+  /** Cambiar fase actual (llamado internamente durante el deslizamiento) */
   setPhase: (phase: SimulationPhase) => void;
+
+  /** Navegar a una fase destino (el objeto se desliza hasta allá) */
+  navigateToPhase: (phase: SimulationPhase) => void;
+
+  /** Marcar si el objeto está en movimiento */
+  setIsMoving: (moving: boolean) => void;
 
   /** Cambiar vista activa */
   setActiveView: (view: ActiveView) => void;
@@ -76,6 +109,12 @@ interface SimulationStore {
 
   /** Actualizar FPS */
   setFps: (fps: number) => void;
+
+  /** Iniciar simulación de progreso */
+  startProgressSimulation: () => void;
+
+  /** Recibir datos de simulación finales */
+  receiveSimulationData: (data: SimulationData) => void;
 
   /** Simular el flujo completo de procesamiento */
   startProcessingSimulation: (data: SimulationData) => void;
@@ -147,12 +186,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   simulationData: INITIAL_EMPTY_DATA,
   hasData: true,
   phase: 'idle',
+  targetPhase: 'idle',
+  isMoving: false,
   activeView: 'dashboard',
   isLoading: false,
   progress: 0,
   isProcessingModalOpen: false,
   processingStep: 'Recepción',
   processingProgress: 0,
+  pendingSimulationData: null,
+  isSimulating: false,
   fps: 60,
   language: 'es',
 
@@ -162,9 +205,15 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ simulationData: data, hasData: true }),
 
   clearSimulationData: () =>
-    set({ simulationData: INITIAL_EMPTY_DATA, hasData: true, phase: 'idle' }),
+    set({ simulationData: INITIAL_EMPTY_DATA, hasData: true, phase: 'idle', targetPhase: 'idle' }),
 
   setPhase: (phase) => set({ phase }),
+
+  navigateToPhase: (targetPhase) => {
+    set({ targetPhase, isMoving: true });
+  },
+
+  setIsMoving: (isMoving) => set({ isMoving }),
 
   setActiveView: (view) => set({ activeView: view }),
 
@@ -190,61 +239,133 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   setFps: (fps) => set({ fps }),
 
-  /**
-   * Simula el flujo completo de procesamiento con animación de progreso.
-   * Recorre cada paso con delays para crear efecto realista.
-   */
-  startProcessingSimulation: (data) => {
+  startProgressSimulation: () => {
     const store = get();
+    // Reiniciar estados de simulación asíncrona
+    set({
+      isSimulating: true,
+      pendingSimulationData: null,
+    });
 
-    // Abrir modal y empezar
     store.openProcessingModal();
     store.setPhase('reception');
+    set({ targetPhase: 'reception', isMoving: false });
 
     let currentStepIndex = 0;
     let currentProgress = 0;
 
     const advanceProgress = () => {
-      if (currentStepIndex >= PROCESSING_STEPS.length) {
-        // Finalizado: cargar datos y cerrar modal
-        store.setSimulationData(data);
-        store.setPhase('comparative');
+      // Si el modal se cerró o ya no estamos simulando, salir
+      if (!get().isProcessingModalOpen || !get().isSimulating) return;
 
-        setTimeout(() => {
-          store.closeProcessingModal();
-        }, 800);
+      if (currentStepIndex >= PROCESSING_STEPS.length) {
+        const finalData = get().pendingSimulationData;
+        if (finalData) {
+          store.setSimulationData(finalData);
+          store.navigateToPhase('output');
+          set({ isSimulating: false });
+          setTimeout(() => {
+            store.closeProcessingModal();
+          }, 800);
+        }
         return;
       }
 
       const { step, targetProgress } = PROCESSING_STEPS[currentStepIndex];
+
+      // Si llegamos al último paso o el progreso es >= 95% y no hay datos, pausamos en 95%
+      if (currentProgress >= 95 && !get().pendingSimulationData) {
+        store.setProcessingStep('Resultados');
+        store.setProcessingProgress(95);
+        return;
+      }
+
       store.setProcessingStep(step);
 
       // Sincronizar la fase física 3D con el progreso
       if (step === 'Recepción') {
-        store.setPhase('reception');
+        store.navigateToPhase('reception');
       } else if (step === 'Escaneo' || step === 'Procesando') {
-        store.setPhase('scanning');
+        store.navigateToPhase('scanning');
       } else if (step === 'Irradiación') {
-        store.setPhase('irradiation');
+        store.navigateToPhase('irradiation');
       } else if (step === 'Resultados') {
-        store.setPhase('output');
+        store.navigateToPhase('output');
       }
 
-      // Incrementar progreso gradualmente
+      // Incrementar progreso gradualmente (2.6 segundos para llegar a 95%)
       const incrementInterval = setInterval(() => {
-        currentProgress += 1;
-        store.setProcessingProgress(Math.min(currentProgress, targetProgress));
+        if (!get().isProcessingModalOpen || !get().isSimulating) {
+          clearInterval(incrementInterval);
+          return;
+        }
 
-        if (currentProgress >= targetProgress) {
+        // Si ya alcanzamos 95% y no hay datos, pausar
+        if (currentProgress >= 95 && !get().pendingSimulationData) {
+          clearInterval(incrementInterval);
+          store.setProcessingProgress(95);
+          store.setProcessingStep('Resultados');
+          return;
+        }
+
+        currentProgress += 1;
+        
+        // El target máximo actual se limita a 95% si no hay datos
+        const limitProgress = get().pendingSimulationData ? targetProgress : Math.min(targetProgress, 95);
+        store.setProcessingProgress(Math.min(currentProgress, limitProgress));
+
+        if (currentProgress >= limitProgress) {
           clearInterval(incrementInterval);
           currentStepIndex++;
-          // Delay entre pasos
-          setTimeout(advanceProgress, 400);
+          // Delay de transición rápido entre fases: 150ms
+          setTimeout(advanceProgress, 150);
         }
-      }, 60);
+      }, 20);
     };
 
-    // Iniciar después de un breve delay
-    setTimeout(advanceProgress, 300);
+    // Iniciar después de un breve delay inicial
+    setTimeout(advanceProgress, 100);
+  },
+
+  receiveSimulationData: (data) => {
+    const store = get();
+    set({ pendingSimulationData: data });
+
+    // Si el modal está abierto y ya estamos en el hold del progreso final (>= 95)
+    if (store.isProcessingModalOpen && store.processingProgress >= 95) {
+      let currentProgress = store.processingProgress;
+      
+      const finalInterval = setInterval(() => {
+        if (!get().isProcessingModalOpen) {
+          clearInterval(finalInterval);
+          return;
+        }
+
+        currentProgress += 1;
+        store.setProcessingProgress(Math.min(currentProgress, 100));
+
+        if (currentProgress >= 100) {
+          clearInterval(finalInterval);
+          
+          store.setSimulationData(data);
+          store.navigateToPhase('output');
+          set({ isSimulating: false });
+
+          setTimeout(() => {
+            store.closeProcessingModal();
+          }, 800);
+        }
+      }, 30); // 150ms para saltar de 95 a 100
+    } else if (!store.isProcessingModalOpen) {
+      // Inyectar directamente si el modal se cerró antes
+      store.setSimulationData(data);
+      store.navigateToPhase('output');
+      set({ isSimulating: false });
+    }
+  },
+
+  startProcessingSimulation: (data) => {
+    get().startProgressSimulation();
+    get().receiveSimulationData(data);
   },
 }));

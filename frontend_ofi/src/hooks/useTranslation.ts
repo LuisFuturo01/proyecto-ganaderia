@@ -6,14 +6,19 @@ const DICTIONARY = {
   es: {
     // ── Header ──
     'sys_status_ready': 'SISTEMA LISTO',
-    'sys_status_processing': 'PROCESANDO LOTE',
+    'sys_status_processing': 'PROCESANDO',
     'sys_status_completed': 'ANÁLISIS COMPLETADO',
-    'sys_sub': 'Sistema de Dosimetría Predictiva • Hackathon Nuclear Boliviano',
+    'sys_sub': 'Sistema de Dosimetría Predictiva',
     'sys_processor': 'PROCESADOR IA:',
     'btn_new_batch': 'NUEVO LOTE',
     'btn_simulate': 'DEMO SIMULAR',
     'tooltip_new_batch': 'Sube una imagen de lote agrícola para iniciar análisis',
     'tooltip_simulate': 'Carga una simulación de demostración con datos predeterminados',
+    'btn_hide_uploader': 'Ocultar Panel de Carga',
+    'btn_show_uploader': 'Abrir Panel de Carga',
+    'hud_title': 'SISTEMA DE ESCANEO 3D & DOSIMETRÍA EN TIEMPO REAL',
+    'consolidation_title': 'CONSOLIDACIÓN MULTI-VISTA 360° (REGISTRO AGRUPADO)',
+    'consolidation_desc': 'Fotografías secuenciales del objeto (papa o manzana) capturadas a intervalos equidistantes de 90° y procesadas por el motor de segmentación RadioGuard-Analyzer.',
 
     // ── Sidebar ──
     'menu_title': 'Monitoreo en Tiempo Real',
@@ -56,11 +61,11 @@ const DICTIONARY = {
     'phase_5_desc': 'Antes vs Después',
 
     // ── Classification Panel ──
-    'class_title': 'Segmentación YOLOv8',
+    'class_title': 'Análisis RadioGuard-Analyzer',
     'class_status': 'CLASIFICADO',
     'class_detected': 'PRODUCTO DETECTADO',
     'class_confidence': 'CONFIANZA DEL MODELO',
-    'class_footer_net': 'RED: Segmentación de Instancias',
+    'class_footer_net': 'SISTEMA: RadioGuard-Analyzer',
 
     // ── Geometry Panel ──
     'geom_title': 'Análisis Geométrico 3D',
@@ -117,7 +122,7 @@ const DICTIONARY = {
     'panel_before_anom': 'Piel con anomalías:',
     'panel_before_lifetime': 'Tiempo de vida útil estimado:',
     'panel_before_lifetime_val': '~ 5 a 8 días',
-    'panel_before_footer_tech': 'Evaluado: YOLOv8-seg + RGB',
+    'panel_before_footer_tech': 'Evaluado: RadioGuard-Analyzer + RGB',
     'panel_before_footer_alert': 'Alerta: Tratamiento Requerido',
 
     'panel_after_title': 'LOTE IRRADIADO (DOSIS SIMULADA)',
@@ -133,8 +138,8 @@ const DICTIONARY = {
     'panel_after_footer_desc': 'Apto para Consumo Humano y Exportación',
 
     // ── Processing Modal ──
-    'modal_title': 'EJECUTANDO ANALÍTICA E IRRADIACIÓN PREDICTIVA',
-    'modal_subtitle': 'Procesamiento de Lote Fitosanitario en Progreso',
+    'modal_title': 'EJECUTANDO ANALÍTICA E IRRADIACIÓN',
+    'modal_subtitle': 'Procesamiento Fitosanitario en Progreso',
     'modal_step_label': 'Paso Actual:',
     'modal_footer_status': 'Estado: Conectado a Core Python',
     'modal_footer_remaining': 'Restante aprox:',
@@ -178,7 +183,7 @@ const DICTIONARY = {
     // ── App Start & Core Views ──
     'start_title': 'INICIAR SISTEMA RADIOGUARD',
     'start_desc': 'Bienvenido al Centro de Control de Dosimetría Predictiva. Inicie la demostración interactiva o suba una imagen de lote agrícola para comenzar con la segmentación y simulación dosimétrica.',
-    'start_yolo': 'Detección por YOLOv8',
+    'start_yolo': 'Análisis RadioGuard-Analyzer',
     'start_atten': 'Cálculo de Atenuación 3D',
     'rep_title': 'Reporte Fitosanitario Automatizado',
     'rep_generating': 'Generando informe de lote #04...',
@@ -208,6 +213,8 @@ const DICTIONARY = {
     'camera_waiting_desc': 'Por favor, presiona la tecla C en la ventana de cámara abierta localmente para capturar los cuadrantes. Al completarse, el backend inyectará de forma automática el modelo 3D y las simulaciones en este panel en tiempo real.',
     'camera_status_connected': 'Cámara Local Conectada Real-Time',
     'camera_status_disconnected': 'Cámara Local Desconectada',
+    'uploader_manual_module': 'MÓDULO DE ESCANEO / CARGA MANUAL',
+    'uploader_manual_desc': 'Sube múltiples vistas o conecta tu dispositivo de captura para procesar el fruto en tiempo real.',
     // ── Financial Operational B2B ──
     'fin_title': 'Impacto Operativo & Financiero B2B',
     'fin_shelf_life': 'Vida Útil Post-Irradiación',
@@ -223,14 +230,19 @@ const DICTIONARY = {
   en: {
     // ── Header ──
     'sys_status_ready': 'SYSTEM READY',
-    'sys_status_processing': 'PROCESSING BATCH',
+    'sys_status_processing': 'PROCESSING',
     'sys_status_completed': 'ANALYSIS COMPLETED',
-    'sys_sub': 'Predictive Dosimetry System • Bolivian Nuclear Hackathon',
+    'sys_sub': 'Predictive Dosimetry System',
     'sys_processor': 'AI PROCESSOR:',
     'btn_new_batch': 'NEW BATCH',
     'btn_simulate': 'DEMO SIMULATE',
     'tooltip_new_batch': 'Upload a crop batch image to start analysis',
     'tooltip_simulate': 'Load a demo simulation with default data',
+    'btn_hide_uploader': 'Hide Upload Panel',
+    'btn_show_uploader': 'Open Upload Panel',
+    'hud_title': '3D SCANNING & DOSIMETRY REAL-TIME SYSTEM',
+    'consolidation_title': '360° MULTI-VIEW CONSOLIDATION (GROUPED REGISTRATION)',
+    'consolidation_desc': 'Sequential photographs of the object (potato or apple) captured at equidistant 90° intervals and processed by the analysis engine.',
 
     // ── Sidebar ──
     'menu_title': 'Real-Time Monitoring',
@@ -273,11 +285,11 @@ const DICTIONARY = {
     'phase_5_desc': 'Before vs After',
 
     // ── Classification Panel ──
-    'class_title': 'YOLOv8 Segmentation',
+    'class_title': 'RadioGuard-Analyzer Analysis',
     'class_status': 'CLASSIFIED',
     'class_detected': 'DETECTED PRODUCT',
     'class_confidence': 'MODEL CONFIDENCE',
-    'class_footer_net': 'NETWORK: Instance Segmentation',
+    'class_footer_net': 'SYSTEM: RadioGuard-Analyzer',
 
     // ── Geometry Panel ──
     'geom_title': '3D Geometric Analysis',
@@ -331,10 +343,10 @@ const DICTIONARY = {
     'panel_before_bact': 'Estimated Bacterial Load:',
     'panel_before_germ': 'Germination Status:',
     'panel_before_germ_val': 'PRONE / ACTIVE',
-    'panel_before_anom': 'Skin with anomalies:',
+    'panel_before_anom': 'Skin anomalies:',
     'panel_before_lifetime': 'Estimated shelf life:',
     'panel_before_lifetime_val': '~ 5 to 8 days',
-    'panel_before_footer_tech': 'Evaluated: YOLOv8-seg + RGB',
+    'panel_before_footer_tech': 'Evaluated: RadioGuard-Analyzer + RGB',
     'panel_before_footer_alert': 'Alert: Treatment Required',
 
     'panel_after_title': 'IRRADIATED BATCH (SIMULATED DOSE)',
@@ -350,8 +362,8 @@ const DICTIONARY = {
     'panel_after_footer_desc': 'Fit for Human Consumption and Export',
 
     // ── Processing Modal ──
-    'modal_title': 'EXECUTING PREDICTIVE IRRADIATION & ANALYTICS',
-    'modal_subtitle': 'Phytosanitary Batch Processing in Progress',
+    'modal_title': 'EXECUTING IRRADIATION & ANALYTICS',
+    'modal_subtitle': 'Phytosanitary Processing in Progress',
     'modal_step_label': 'Current Step:',
     'modal_footer_status': 'Status: Connected to Python Core',
     'modal_footer_remaining': 'Approx. remaining:',
@@ -395,7 +407,7 @@ const DICTIONARY = {
     // ── App Start & Core Views ──
     'start_title': 'START RADIOGUARD SYSTEM',
     'start_desc': 'Welcome to the Predictive Dosimetry Control Center. Start the interactive demo or upload a crop batch image to begin with the segmentation and dosimetry simulation.',
-    'start_yolo': 'YOLOv8 Detection',
+    'start_yolo': 'RadioGuard-Analyzer Analysis',
     'start_atten': '3D Attenuation Calculation',
     'rep_title': 'Automated Phytosanitary Report',
     'rep_generating': 'Generating report for batch #04...',
@@ -425,6 +437,8 @@ const DICTIONARY = {
     'camera_waiting_desc': 'Please press the C key in the locally opened camera window to capture the viewpoints. Upon completion, the backend will automatically inject the 3D model and simulations into this panel in real-time.',
     'camera_status_connected': 'Local Camera Connected Real-Time',
     'camera_status_disconnected': 'Local Camera Disconnected',
+    'uploader_manual_module': 'SCANNING / MANUAL UPLOAD MODULE',
+    'uploader_manual_desc': 'Upload multiple views or connect your capture device to process the fruit in real-time.',
     // ── Financial Operational B2B ──
     'fin_title': 'B2B Financial & Operational Impact',
     'fin_shelf_life': 'Post-Irradiation Shelf Life',
